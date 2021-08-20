@@ -1,0 +1,10 @@
+*.dll
+bin
+*.jpg
+.vs
+obj
+.idea
+bin/
+obj/
+Bulldozer.csproj.user
+*.user
