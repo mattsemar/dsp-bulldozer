@@ -1,0 +1,7 @@
+﻿{
+  "name": "Bulldozer",
+  "version_number": "1.0.2",
+  "website_url": "https://github.com/thunderstore-io",
+  "description": "Flattens planet by applying foundation",
+  "dependencies": ["xiaoye97-BepInEx-5.4.5"]
+}
