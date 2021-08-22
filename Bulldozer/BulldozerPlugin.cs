@@ -19,7 +19,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.2";
+        public const string PluginVersion = "1.0.3";
 
         public static ManualLogSource logger;
         private static Thread bulldozerActionThread;
@@ -292,7 +292,6 @@ namespace Bulldozer
                         logger.LogWarning($"exception while applying coat of paint {e.Message}");
                         logger.LogWarning(e.StackTrace);
                     }
-                // }
             }
         }
 
@@ -498,7 +497,11 @@ namespace Bulldozer
                 return;
             }
 
-            ui.AddDrawEquatorCheckbox(containerRect, button1);
+            ui.AddDrawEquatorCheckbox(containerRect, button1, bt =>
+            {
+                InvokePavePlanet();
+                UIRealtimeTip.Popup("Paving");
+            });
         }
 
         private static Vector3 LatLonToPosition(float lat, float lon, float earthRadius)

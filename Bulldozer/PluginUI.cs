@@ -19,11 +19,10 @@ namespace Bulldozer
         private GameObject newSeparator;
 
 
-        public void AddDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1)
+        public void AddDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1, Action<int> action) 
         {
             InitOnOffSprites();
-
-            InitDrawEquatorCheckbox(environmentModificationContainer, button1);
+            InitDrawEquatorCheckbox(environmentModificationContainer, button1, action);
         }
 
         private void InitOnOffSprites()
@@ -34,7 +33,7 @@ namespace Bulldozer
             spriteUnChecked = Sprite.Create(texOff, new Rect(0, 0, texOff.width, texOff.height), new Vector2(0.5f, 0.5f));
         }
 
-        private void InitDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1)
+        private void InitDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1, Action<int> action)
         {
             DrawEquatorCheck = new GameObject("Draw equator line");
             RectTransform rect = DrawEquatorCheck.AddComponent<RectTransform>();
@@ -78,20 +77,19 @@ namespace Bulldozer
 
             countText = null;
             BulldozeButton = CopyButton(button1.GetComponent<RectTransform>(), Vector2.right * (5 + button1.GetComponent<RectTransform>().sizeDelta.x), out countText,
-                Helper.GetSprite("bulldoze"));
+                Helper.GetSprite("bulldoze"), action);
             Console.WriteLine($"returned text {countText?.text}");
             var newUiButton = BulldozeButton.GetComponent<UIButton>();
             if (newUiButton != null)
             {
                 newUiButton.data = 44;
-                 
             }
 
             CheckboxText = new GameObject("drawEquatorLineCheckboxText");
             RectTransform rectTxt = CheckboxText.AddComponent<RectTransform>();
-            
+
             rectTxt.SetParent(environmentModificationContainer.transform.parent, false);
-            
+
             rectTxt.anchorMax = new Vector2(0, 0.5f);
             rectTxt.anchorMin = new Vector2(0, 0.5f);
             rectTxt.sizeDelta = new Vector2(100, 20);
@@ -99,7 +97,6 @@ namespace Bulldozer
             rectTxt.anchoredPosition = new Vector2(20, 0);
             Text text = rectTxt.gameObject.AddComponent<Text>();
             text.text = "Display /sec";
-         
         }
 
         public RectTransform BulldozeButton;
@@ -131,7 +128,7 @@ namespace Bulldozer
             }
         }
 
-        public RectTransform CopyButton(RectTransform rectTransform, Vector2 positionDelta, out Text countComponent, Sprite newIcon)
+        public RectTransform CopyButton(RectTransform rectTransform, Vector2 positionDelta, out Text countComponent, Sprite newIcon, Action<int> action)
         {
             var copied = Instantiate(rectTransform, rectTransform.transform.parent, false);
             var copiedRectTransform = copied.GetComponent<RectTransform>();
@@ -154,17 +151,6 @@ namespace Bulldozer
                 }
             }
 
-            var count = copiedRectTransform.transform.Find("count");
-            Console.WriteLine($"found count {count}");
-            if (count != null)
-            {
-                countComponent = count.GetComponentInChildren<Text>();
-                if (countComponent != null)
-                {
-                    countComponent.text = "100";
-                    return copied;
-                }
-            }
             var buttonHotkeyText = copiedRectTransform.transform.Find("text");
             Console.WriteLine($"found button text {buttonHotkeyText}");
             if (buttonHotkeyText != null)
@@ -176,11 +162,28 @@ namespace Bulldozer
                 }
             }
 
-            // var componentInChildren = copiedRectTransform.GetComponentInChildren<UIButton>();
-            // if (componentInChildren != null)
-            // {
-            //     Destroy(componentInChildren);
-            // }
+
+            var copiedUiButton = copiedRectTransform.GetComponentInChildren<UIButton>();
+          if (copiedUiButton != null)
+            {
+              
+                copiedUiButton.tips.itemId = 0;
+                copiedUiButton.transitions = new UIButton.Transition[]{};
+                copiedUiButton.onClick += action;
+            }
+
+            var count = copiedRectTransform.transform.Find("count");
+            Console.WriteLine($"found count {count}");
+            if (count != null)
+            {
+                countComponent = count.GetComponentInChildren<Text>();
+                if (countComponent != null)
+                {
+                    countComponent.text = "0";
+                    return copied;
+                }
+            }
+
 
             countComponent = null;
             return copied;
