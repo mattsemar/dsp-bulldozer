@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using BepInEx.Logging;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,11 +12,11 @@ namespace Bulldozer
 
         public GameObject DrawEquatorCheck;
         public bool DrawEquatorField = true;
-        public GameObject CheckboxText;
         public Image CheckBoxImage;
         public Sprite spriteChecked;
         public Sprite spriteUnChecked;
-        private GameObject newSeparator;
+        private GameObject _newSeparator;
+        private static List<GameObject> gameObjectsToDestroy = new List<GameObject>(); 
 
         public UIButton PaveActionButton;
         public RectTransform BulldozeButton;
@@ -24,6 +25,8 @@ namespace Bulldozer
         public Transform CountTransform;
         private Image _iconImage;
         private Transform _bulldozeIcon;
+        public CheckboxControl drawEquatorCheckboxButton;
+        private Text hover;
 
 
         public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject button1, Action<int> action)
@@ -38,7 +41,9 @@ namespace Bulldozer
             countText = null;
             BulldozeButton = CopyButton(button1.GetComponent<RectTransform>(), Vector2.right * (5 + button1.GetComponent<RectTransform>().sizeDelta.x), out countText,
                 Helper.GetSprite("bulldoze"), action);
+            gameObjectsToDestroy.Add(BulldozeButton.gameObject);
             PaveActionButton = BulldozeButton.GetComponent<UIButton>();
+            gameObjectsToDestroy.Add(countText.gameObject);
         }
 
         private void InitOnOffSprites()
@@ -52,6 +57,7 @@ namespace Bulldozer
         private void InitDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1)
         {
             DrawEquatorCheck = new GameObject("Draw equator line");
+            gameObjectsToDestroy.Add(DrawEquatorCheck);
             RectTransform rect = DrawEquatorCheck.AddComponent<RectTransform>();
             rect.SetParent(environmentModificationContainer.transform, false);
 
@@ -60,84 +66,64 @@ namespace Bulldozer
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
             rect.anchoredPosition = new Vector2(350, -100);
-            Button drawEquatorCheckboxButton = rect.gameObject.AddComponent<Button>();
-
-
-            drawEquatorCheckboxButton.onClick.AddListener(() =>
+            drawEquatorCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
+            drawEquatorCheckboxButton.HoverText = "Add a green line around equator and blue lines at meridian points";
+            drawEquatorCheckboxButton.onClick += data =>
             {
                 DrawEquatorField = !DrawEquatorField;
                 CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
-            });
+            };
+            
 
+            if (countText != null)
+            { 
+                hover = Instantiate(countText, environmentModificationContainer.transform, true);
+                gameObjectsToDestroy.Add(hover.gameObject);
+                var copiedRectTransform = hover.GetComponent<RectTransform>();
+                var parentRect = environmentModificationContainer.GetComponent<RectTransform>();
+                copiedRectTransform.anchorMin = new Vector2(0, 1);
+                copiedRectTransform.anchorMax = new Vector2(0, 1);
+                copiedRectTransform.sizeDelta = new Vector2(500, 20);
+                copiedRectTransform.anchoredPosition = new Vector2(620, parentRect.transform.position.y - 115);
+                drawEquatorCheckboxButton.textObject = hover;
+            }
+            gameObjectsToDestroy.Add(drawEquatorCheckboxButton.gameObject);
 
             CheckBoxImage = drawEquatorCheckboxButton.gameObject.AddComponent<Image>();
             CheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
-        
+            gameObjectsToDestroy.Add(CheckBoxImage.gameObject);
 
             CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
             var sepLine = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/reform-group/sep-line-left-0");
             try
             {
-                newSeparator = Instantiate(sepLine, environmentModificationContainer.transform);
-                newSeparator.tag = "Bulldozer plugin sep line";
+                _newSeparator = Instantiate(sepLine, environmentModificationContainer.transform);
+                _newSeparator.tag = "Bulldozer plugin sep line";
                 var button1Rect = button1.GetComponent<RectTransform>();
-                newSeparator.GetComponent<RectTransform>().anchoredPosition = new Vector2(button1Rect.anchoredPosition.x + button1Rect.sizeDelta.x - 25,
+                _newSeparator.GetComponent<RectTransform>().anchoredPosition = new Vector2(button1Rect.anchoredPosition.x + button1Rect.sizeDelta.x - 25,
                     sepLine.GetComponent<RectTransform>().anchoredPosition.y);
+                gameObjectsToDestroy.Add(_newSeparator.gameObject);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"exception in sep line {e.Message}");
+                logger.LogWarning($"exception in sep line {e.Message}");
             }
         }
-
 
         public void Unload()
         {
             try
             {
-                if (CheckboxText != null) 
-                    Destroy(CheckboxText.gameObject);
-                Destroy(DrawEquatorCheck.gameObject);
-                Destroy(spriteChecked);
-                Destroy(spriteUnChecked);
-                if (_iconImage != null)
-                    Destroy(_iconImage.gameObject);
-                if (CheckBoxImage != null)
+                while (gameObjectsToDestroy.Count > 0)
                 {
-                    Destroy(CheckBoxImage.gameObject);
+                    Destroy(gameObjectsToDestroy[0]);
+                    gameObjectsToDestroy.RemoveAt(0);
                 }
-
-                if (newSeparator != null)
-                {
-                    Destroy(newSeparator.gameObject);
-                }
-
-                if (BulldozeButton != null)
-                {
-                    Destroy(BulldozeButton);
-                }
-
-                if (PaveActionButton != null)
-                {
-                    Destroy(PaveActionButton.gameObject);
-                }
-
-                if (CountTransform != null)
-                {
-                    Destroy(CountTransform.gameObject);
-                }
-
-                if (_bulldozeIcon != null)
-                {
-                    Destroy(_bulldozeIcon.gameObject);
-                }
-                if (countText != null)
-                    Destroy(countText.gameObject);
             }
             catch (Exception e)
             {
-                Console.WriteLine($"failed to do unload {e.Message}");
-                Console.WriteLine(e.StackTrace);
+                logger.LogWarning($"failed to do unload {e.Message}");
+                logger.LogWarning(e.StackTrace);
             }
         }
 
@@ -156,15 +142,17 @@ namespace Bulldozer
             _bulldozeIcon = copiedRectTransform.transform.Find("icon");
             if (_bulldozeIcon != null)
             {
+                gameObjectsToDestroy.Add(_bulldozeIcon.gameObject);
                 _iconImage = _bulldozeIcon.GetComponentInChildren<Image>();
                 if (_iconImage != null)
                 {
                     _iconImage.sprite = newIcon;
+                    gameObjectsToDestroy.Add(_iconImage.gameObject);
                 }
             }
 
             var buttonHotkeyText = copiedRectTransform.transform.Find("text");
-            Console.WriteLine($"found button text {buttonHotkeyText}");
+            logger.LogDebug($"found button text {buttonHotkeyText}");
             if (buttonHotkeyText != null)
             {
                 buttonHotkeyTextComponent = buttonHotkeyText.GetComponentInChildren<Text>();
@@ -179,7 +167,8 @@ namespace Bulldozer
             if (copiedUiButton != null)
             {
                 copiedUiButton.tips.itemId = 0;
-                copiedUiButton.transitions = new UIButton.Transition[] { };
+                copiedUiButton.tips.tipTitle = "Bulldoze";
+                copiedUiButton.tips.tipText = "Adds foundation to entire planet. Any existing foundation colors will be lost.\nCurrently selected options for burying veins and foundation type will be used.\nGame may lag a bit after invocation. Press again to halt.";
                 copiedUiButton.onClick += action;
             }
 
