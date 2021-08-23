@@ -19,6 +19,9 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.6
+Added hover text to action button and checkbox and added ability to cancel execution
+
 #### v1.0.5
 Handle exception in vegetation removal
 

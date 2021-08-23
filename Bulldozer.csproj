@@ -58,6 +58,10 @@
     </EmbeddedResource>
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Libs" />
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
     <Exec Command="COPY $(TargetPath) &quot;%25ProgramFiles(x86)%25\Steam\steamapps\common\Dyson Sphere Program\BepInEx\scripts&quot;" />
   </Target>

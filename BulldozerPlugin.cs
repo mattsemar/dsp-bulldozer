@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Threading;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -22,12 +21,11 @@ namespace Bulldozer
 
         public static ManualLogSource logger;
 
-        private static readonly List<ClearFactoryWorkItem> bulldozerWork = new List<ClearFactoryWorkItem>();
-        private static readonly List<PaveWorkItem> flattenWorkList = new List<PaveWorkItem>();
+        private static readonly List<ClearFactoryWorkItem> BulldozerWork = new List<ClearFactoryWorkItem>();
+        private static readonly List<PaveWorkItem> FlattenWorkList = new List<PaveWorkItem>();
 
         private static ItemDestructionPhase previousPhase = ItemDestructionPhase.Done;
 
-        private static object destroyFactorMutexLock = new object();
         private static Stopwatch clearStopWatch;
 
 
@@ -57,12 +55,12 @@ namespace Bulldozer
         private void OnDestroy()
         {
             // For ScriptEngine hot-reloading
-            bulldozerWork?.Clear();
-            flattenWorkList?.Clear();
+            BulldozerWork?.Clear();
+            FlattenWorkList?.Clear();
             if (ui != null)
             {
                 ui.Unload();
-                Destroy(ui);
+                // Destroy(ui.gameObject);
             }
 
             harmony.UnpatchSelf();
@@ -128,7 +126,7 @@ namespace Bulldozer
 
                             countsByPhase[phase]++;
                             scheduledItemIds.Add(itemId);
-                            bulldozerWork.Add(
+                            BulldozerWork.Add(
                                 new ClearFactoryWorkItem
                                 {
                                     Phase = phase,
@@ -142,7 +140,7 @@ namespace Bulldozer
                 phase++;
             }
 
-            Logger.LogDebug($"added {bulldozerWork.Count} items to delete {countsByPhase}");
+            Logger.LogDebug($"added {BulldozerWork.Count} items to delete {countsByPhase}");
         }
 
         public static bool RemoveBuild(Player player, PlanetFactory factory, int objId)
@@ -171,14 +169,14 @@ namespace Bulldozer
 
         private void DoPaveUpdate()
         {
-            if (flattenWorkList.Count > 0)
+            if (FlattenWorkList.Count > 0)
             {
-                var countDown = Math.Min(flattenWorkList.Count, 4);
+                var countDown = Math.Min(FlattenWorkList.Count, 4);
                 while (countDown-- > 0)
                 {
-                    var flattenTask = flattenWorkList[0];
-                    flattenWorkList.RemoveAt(0);
-                    ui.countText.text = $"{flattenWorkList.Count}";
+                    var flattenTask = FlattenWorkList[0];
+                    FlattenWorkList.RemoveAt(0);
+                    ui.countText.text = $"{FlattenWorkList.Count}";
 
                     var point = flattenTask.Position;
                     var planetFactory = flattenTask.Factory;
@@ -202,12 +200,12 @@ namespace Bulldozer
                         logger.LogWarning($"exception while paving {e.Message} {e.StackTrace}");
                     }
 
-                    if (flattenWorkList.Count == 0) planetFactory.planet.landPercentDirty = true;
+                    if (FlattenWorkList.Count == 0) planetFactory.planet.landPercentDirty = true;
                 }
 
-                if (flattenWorkList.Count % 100 == 0)
+                if (FlattenWorkList.Count % 100 == 0)
                 {
-                    logger.LogDebug($"flattened point, {flattenWorkList.Count} remain");
+                    logger.LogDebug($"flattened point, {FlattenWorkList.Count} remain");
                 }
             }
             else if (_flattenRequested)
@@ -301,14 +299,14 @@ namespace Bulldozer
 
         private void DoBulldozeUpdate()
         {
-            if (bulldozerWork.Count > 0)
+            if (BulldozerWork.Count > 0)
             {
                 var countDown = 5;
                 while (countDown-- > 0)
-                    if (bulldozerWork.Count > 0)
+                    if (BulldozerWork.Count > 0)
                     {
-                        var bulldozeTask = bulldozerWork[0];
-                        bulldozerWork.RemoveAt(0);
+                        var bulldozeTask = BulldozerWork[0];
+                        BulldozerWork.RemoveAt(0);
                         if (bulldozeTask.Phase != previousPhase)
                         {
                             UIRealtimeTip.Popup($"Starting phase {bulldozeTask.Phase} {bulldozeTask.ItemId}");
@@ -357,7 +355,7 @@ namespace Bulldozer
             }
 
             var planet = mainPlayerFactory.planet;
-            flattenWorkList.Clear();
+            FlattenWorkList.Clear();
             var tmpFlattenWorkList = new List<PaveWorkItem>();
             platformSystem.EnsureReformData();
             for (var lat = -89; lat < 90; lat += 9)
@@ -394,7 +392,6 @@ namespace Bulldozer
                             Player = mainPlayer,
                             Factory = mainPlayerFactory
                         });
-                    // logger.LogDebug($"{PositionToLatLonString(vein.pos)}");
                 }
             }
 
@@ -405,7 +402,7 @@ namespace Bulldozer
                 return distance1.CompareTo(distance2);
             });
 
-            flattenWorkList.AddRange(tmpFlattenWorkList);
+            FlattenWorkList.AddRange(tmpFlattenWorkList);
             SetFlattenRequestedFlag(true);
         }
 
@@ -459,8 +456,17 @@ namespace Bulldozer
 
             ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
             {
-                InvokePavePlanet();
-                UIRealtimeTip.Popup("Paving");
+                if (FlattenWorkList.Count > 0)
+                {
+                    FlattenWorkList.Clear();
+                    UIRealtimeTip.Popup("Stopping...");
+                    ui.countText.text = $"{FlattenWorkList.Count}";
+                }
+                else
+                {
+                    InvokePavePlanet();
+                    UIRealtimeTip.Popup("Adding foundation");
+                }
             });
         }
 
