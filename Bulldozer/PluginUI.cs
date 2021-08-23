@@ -1,28 +1,44 @@
 ﻿using System;
+using BepInEx.Logging;
 using UnityEngine;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
 
 namespace Bulldozer
 {
     public class UIElements : MonoBehaviour
     {
+        public static ManualLogSource logger;
+
         public GameObject DrawEquatorCheck;
         public bool DrawEquatorField = true;
-
         public GameObject CheckboxText;
-
         public Image CheckBoxImage;
-
         public Sprite spriteChecked;
         public Sprite spriteUnChecked;
         private GameObject newSeparator;
 
+        public UIButton PaveActionButton;
+        public RectTransform BulldozeButton;
+        public Text countText;
+        public Text buttonHotkeyTextComponent;
+        public Transform CountTransform;
+        private Image _iconImage;
+        private Transform _bulldozeIcon;
 
-        public void AddDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1, Action<int> action) 
+
+        public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject button1, Action<int> action)
         {
             InitOnOffSprites();
-            InitDrawEquatorCheckbox(environmentModificationContainer, button1, action);
+            InitActionButton(button1, action);
+            InitDrawEquatorCheckbox(environmentModificationContainer, button1);
+        }
+
+        private void InitActionButton(GameObject button1, Action<int> action)
+        {
+            countText = null;
+            BulldozeButton = CopyButton(button1.GetComponent<RectTransform>(), Vector2.right * (5 + button1.GetComponent<RectTransform>().sizeDelta.x), out countText,
+                Helper.GetSprite("bulldoze"), action);
+            PaveActionButton = BulldozeButton.GetComponent<UIButton>();
         }
 
         private void InitOnOffSprites()
@@ -33,13 +49,11 @@ namespace Bulldozer
             spriteUnChecked = Sprite.Create(texOff, new Rect(0, 0, texOff.width, texOff.height), new Vector2(0.5f, 0.5f));
         }
 
-        private void InitDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1, Action<int> action)
+        private void InitDrawEquatorCheckbox(RectTransform environmentModificationContainer, GameObject button1)
         {
             DrawEquatorCheck = new GameObject("Draw equator line");
             RectTransform rect = DrawEquatorCheck.AddComponent<RectTransform>();
             rect.SetParent(environmentModificationContainer.transform, false);
-
-            Console.WriteLine("initialized checkbox rect");
 
             rect.anchorMax = new Vector2(0, 1);
             rect.anchorMin = new Vector2(0, 1);
@@ -55,10 +69,10 @@ namespace Bulldozer
                 CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
             });
 
-            Console.WriteLine("initialized button");
 
             CheckBoxImage = drawEquatorCheckboxButton.gameObject.AddComponent<Image>();
             CheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
+        
 
             CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
             var sepLine = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/reform-group/sep-line-left-0");
@@ -74,43 +88,25 @@ namespace Bulldozer
             {
                 Console.WriteLine($"exception in sep line {e.Message}");
             }
-
-            countText = null;
-            BulldozeButton = CopyButton(button1.GetComponent<RectTransform>(), Vector2.right * (5 + button1.GetComponent<RectTransform>().sizeDelta.x), out countText,
-                Helper.GetSprite("bulldoze"), action);
-            Console.WriteLine($"returned text {countText?.text}");
-            var newUiButton = BulldozeButton.GetComponent<UIButton>();
-            if (newUiButton != null)
-            {
-                newUiButton.data = 44;
-            }
-
-            CheckboxText = new GameObject("drawEquatorLineCheckboxText");
-            RectTransform rectTxt = CheckboxText.AddComponent<RectTransform>();
-
-            rectTxt.SetParent(environmentModificationContainer.transform.parent, false);
-
-            rectTxt.anchorMax = new Vector2(0, 0.5f);
-            rectTxt.anchorMin = new Vector2(0, 0.5f);
-            rectTxt.sizeDelta = new Vector2(100, 20);
-            rectTxt.pivot = new Vector2(0, 0.5f);
-            rectTxt.anchoredPosition = new Vector2(20, 0);
-            Text text = rectTxt.gameObject.AddComponent<Text>();
-            text.text = "Display /sec";
         }
 
-        public RectTransform BulldozeButton;
-        public Text countText;
-        public Text buttonHotkeyTextComponent;
 
         public void Unload()
         {
             try
             {
-                Destroy(CheckboxText.gameObject);
+                if (CheckboxText != null) 
+                    Destroy(CheckboxText.gameObject);
                 Destroy(DrawEquatorCheck.gameObject);
                 Destroy(spriteChecked);
                 Destroy(spriteUnChecked);
+                if (_iconImage != null)
+                    Destroy(_iconImage.gameObject);
+                if (CheckBoxImage != null)
+                {
+                    Destroy(CheckBoxImage.gameObject);
+                }
+
                 if (newSeparator != null)
                 {
                     Destroy(newSeparator.gameObject);
@@ -118,8 +114,25 @@ namespace Bulldozer
 
                 if (BulldozeButton != null)
                 {
-                    Destroy(BulldozeButton.gameObject);
+                    Destroy(BulldozeButton);
                 }
+
+                if (PaveActionButton != null)
+                {
+                    Destroy(PaveActionButton.gameObject);
+                }
+
+                if (CountTransform != null)
+                {
+                    Destroy(CountTransform.gameObject);
+                }
+
+                if (_bulldozeIcon != null)
+                {
+                    Destroy(_bulldozeIcon.gameObject);
+                }
+                if (countText != null)
+                    Destroy(countText.gameObject);
             }
             catch (Exception e)
             {
@@ -140,14 +153,13 @@ namespace Bulldozer
             copiedRectTransform.anchoredPosition = originalRectTransform.anchoredPosition + positionDelta;
 
 
-            var icon = copiedRectTransform.transform.Find("icon");
-            Console.WriteLine($"found icon {icon}");
-            if (icon != null)
+            _bulldozeIcon = copiedRectTransform.transform.Find("icon");
+            if (_bulldozeIcon != null)
             {
-                var image = icon.GetComponentInChildren<Image>();
-                if (image != null)
+                _iconImage = _bulldozeIcon.GetComponentInChildren<Image>();
+                if (_iconImage != null)
                 {
-                    image.sprite = newIcon;
+                    _iconImage.sprite = newIcon;
                 }
             }
 
@@ -164,19 +176,17 @@ namespace Bulldozer
 
 
             var copiedUiButton = copiedRectTransform.GetComponentInChildren<UIButton>();
-          if (copiedUiButton != null)
+            if (copiedUiButton != null)
             {
-              
                 copiedUiButton.tips.itemId = 0;
-                copiedUiButton.transitions = new UIButton.Transition[]{};
+                copiedUiButton.transitions = new UIButton.Transition[] { };
                 copiedUiButton.onClick += action;
             }
 
-            var count = copiedRectTransform.transform.Find("count");
-            Console.WriteLine($"found count {count}");
-            if (count != null)
+            CountTransform = copiedRectTransform.transform.Find("count");
+            if (CountTransform != null)
             {
-                countComponent = count.GetComponentInChildren<Text>();
+                countComponent = CountTransform.GetComponentInChildren<Text>();
                 if (countComponent != null)
                 {
                     countComponent.text = "0";
@@ -188,74 +198,19 @@ namespace Bulldozer
             countComponent = null;
             return copied;
         }
-    }
 
-    public class ActionButton
-    {
-        public Action<UIButton> Action;
-        public string Name;
-        public string TipText;
-        public string TipTitle;
-        public RectTransform TriggerButton;
-        public UIButton uiButton;
-        public int YOffset;
-
-        public ActionButton(string name, string tipTitle,
-            string tipText, int offset,
-            Action<UIButton> action, ref Image progressImage)
+        public void Show()
         {
-            Name = $"{name}-trigger-button";
-            TipTitle = tipTitle;
-            TipText = tipText;
-            YOffset = offset;
-            Action = action;
-            var parent = GameObject.Find("Game Menu").GetComponent<RectTransform>();
-            var prefab = GameObject.Find("Game Menu/button-1-bg").GetComponent<RectTransform>();
-            var referencePosition = prefab.localPosition;
-            TriggerButton = Object.Instantiate(prefab, parent, true);
+            BulldozeButton.gameObject.SetActive(true);
+            PaveActionButton.gameObject.SetActive(true);
+            CheckBoxImage.gameObject.SetActive(true);
+        }
 
-            TriggerButton.gameObject.name = Name;
-
-            uiButton = TriggerButton.GetComponent<UIButton>();
-            uiButton.tips.tipTitle = tipTitle;
-            uiButton.tips.tipText = tipText;
-            uiButton.tips.delay = 0f;
-            TriggerButton.transform.Find("button-1/icon").GetComponent<Image>().sprite =
-                Helper.GetSprite($"{name}-trigger-icon");
-            TriggerButton.localScale = new Vector3(0.35f, 0.35f, 0.35f);
-            TriggerButton.localPosition = new Vector3(referencePosition.x + 155f, referencePosition.y + offset,
-                referencePosition.z);
-            uiButton.OnPointerDown(null);
-            uiButton.OnPointerEnter(null);
-
-            void UnityAction()
-            {
-                try
-                {
-                    Console.WriteLine($"[START] performing action for button {name}");
-                    action(uiButton);
-                    Console.WriteLine($"[END] performing action for button {name}");
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine($"Got exception {e.Message} trying to do handler for {name}. {e.StackTrace}");
-                }
-            }
-
-            uiButton.button.onClick.AddListener(UnityAction);
-
-            var prefabProgress = GameObject.Find("tech-progress").GetComponent<Image>();
-            progressImage = Object.Instantiate(prefabProgress, parent, true);
-            progressImage.gameObject.name = $"{name}-trigger-image";
-            progressImage.fillAmount = 0;
-            progressImage.type = Image.Type.Filled;
-            progressImage.rectTransform.localScale = new Vector3(3.0f, 3.0f, 3.0f);
-            progressImage.rectTransform.localPosition = new Vector3(referencePosition.x + 155.5f,
-                referencePosition.y + YOffset, referencePosition.z);
-
-            // Switch from circle-thin to round-50px-border
-            var sprite = Resources.Load<Sprite>("UI/Textures/Sprites/round-50px-border");
-            progressImage.sprite = Object.Instantiate(sprite);
+        public void Hide()
+        {
+            BulldozeButton.gameObject.SetActive(false);
+            PaveActionButton.gameObject.SetActive(false);
+            CheckBoxImage.gameObject.SetActive(false);
         }
     }
 

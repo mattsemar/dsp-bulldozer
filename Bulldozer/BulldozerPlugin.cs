@@ -7,7 +7,6 @@ using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
-using UnityEngine.UI;
 using Debug = UnityEngine.Debug;
 
 namespace Bulldozer
@@ -19,19 +18,15 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.3";
+        public const string PluginVersion = "1.0.4";
 
         public static ManualLogSource logger;
         private static Thread bulldozerActionThread;
 
-        private static List<ClearFactoryWorkItem> bulldozerWork = new List<ClearFactoryWorkItem>();
+        private static readonly List<ClearFactoryWorkItem> bulldozerWork = new List<ClearFactoryWorkItem>();
         private static readonly List<PaveWorkItem> flattenWorkList = new List<PaveWorkItem>();
 
         private static ItemDestructionPhase previousPhase = ItemDestructionPhase.Done;
-
-        public static Image ClearResourceImage;
-        public static Image PaveResourceImage;
-
 
         private static object destroyFactorMutexLock = new object();
         private static Stopwatch clearStopWatch;
@@ -40,10 +35,8 @@ namespace Bulldozer
         public static BulldozerPlugin Instance;
         private static bool _genRequestFlag;
         private bool _flattenRequested;
-        private int _lastOffset = 0;
-        private ActionButton clearButton;
         private Harmony harmony;
-        private ActionButton paveButton;
+
         private UIElements ui;
 
         // Awake is called once when both the game and the plugin are loaded
@@ -54,30 +47,6 @@ namespace Bulldozer
             harmony = new Harmony(PluginGuid);
             harmony.PatchAll(typeof(BulldozerPlugin));
             Debug.Log("Bulldozer Plugin Loaded");
-            if (GameMain.instance != null && GameObject.Find("Game Menu/button-1-bg"))
-            {
-                if (ClearResourceImage != null)
-                {
-                    ClearResourceImage.fillAmount = 0;
-                }
-                else
-                {
-                    logger.LogInfo("Loading bulldoze buttons");
-                    Instance.AddClearButton();
-                    logger.LogInfo("Bulldoze button load complete");
-                }
-
-                if (PaveResourceImage != null)
-                {
-                    PaveResourceImage.fillAmount = 0;
-                }
-                else
-                {
-                    logger.LogInfo("Loading pave button");
-                    Instance.AddPaveButton();
-                    logger.LogInfo("Pave button load complete");
-                }
-            }
         }
 
         private void Update()
@@ -90,19 +59,6 @@ namespace Bulldozer
         private void OnDestroy()
         {
             // For ScriptEngine hot-reloading
-            if (clearButton != null && clearButton.TriggerButton != null) Destroy(clearButton.TriggerButton);
-
-            if (clearButton != null && clearButton.uiButton != null) Destroy(clearButton.uiButton);
-
-            if (paveButton != null && paveButton.TriggerButton != null) Destroy(paveButton.TriggerButton);
-
-            if (paveButton != null && paveButton.uiButton != null) Destroy(paveButton.uiButton);
-
-            if (ClearResourceImage != null) Destroy(ClearResourceImage);
-
-            if (PaveResourceImage != null) Destroy(PaveResourceImage);
-
-
             bulldozerWork?.Clear();
             flattenWorkList?.Clear();
             if (ui != null)
@@ -236,23 +192,11 @@ namespace Bulldozer
                     }
 
                     var reformTool = flattenTask.Player.controller.actionBuild.reformTool;
+
                     planetFactory.FlattenTerrain(point, Quaternion.identity,
                         new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: reformTool.buryVeins,
                         lift: true);
-                    try
-                    {
-                        var reformIndexForPosition = planetFactory.platformSystem.GetReformIndexForPosition(point);
-                        planetFactory.platformSystem.SetReformType(reformIndexForPosition,
-                            flattenTask.Player.controller.actionBuild.reformTool.brushType);
-                        planetFactory.platformSystem.SetReformColor(reformIndexForPosition,
-                            flattenTask.Player.controller.actionBuild.reformTool.brushColor);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogWarning($"exception while applying coat of paint {e.Message}");
-                        logger.LogWarning(e.StackTrace);
-                    }
-
+                    planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, reformTool.buryVeins);
                     if (flattenWorkList.Count == 0) planetFactory.planet.landPercentDirty = true;
                 }
 
@@ -269,21 +213,11 @@ namespace Bulldozer
                 var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
                 var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
                 if (maxReformCount == null || platformSystem == null || actionBuild == null) return;
-                var midPoint = maxReformCount / 2;
-                var minEquator = midPoint - 10;
-                var maxEquator = midPoint + 500 * 20;
                 for (var index = 0; index < maxReformCount; ++index)
                     try
                     {
                         var reformToolBrushColor = actionBuild.reformTool.brushColor;
                         var reformToolBrushType = actionBuild.reformTool.brushType;
-
-                        if (minEquator < index && maxEquator > index)
-                        {
-                            reformToolBrushColor = 7; // Green
-                            reformToolBrushType = 1; // paint mode, despite what the foundation tool has currently set
-                        }
-
                         platformSystem.SetReformType(index, reformToolBrushType);
                         platformSystem.SetReformColor(index, reformToolBrushColor);
                     }
@@ -292,6 +226,71 @@ namespace Bulldozer
                         logger.LogWarning($"exception while applying coat of paint {e.Message}");
                         logger.LogWarning(e.StackTrace);
                     }
+
+                if (ui.DrawEquatorField)
+                {
+                    PaintGuideMarkings(platformSystem, actionBuild);
+                }
+            }
+        }
+
+        private void PaintGuideMarkings(PlatformSystem platformSystem, PlayerAction_Build playerActionBuild)
+        {
+            var planetRadius = platformSystem.planet.radius;
+            // meridians
+            for (var lat = -89.9f; lat < 90; lat += 0.25f)
+            {
+                for (var lonOffset = -1; lonOffset < 1; lonOffset++)
+                {
+                    for (var merdidianIndex = 0; merdidianIndex < 4; merdidianIndex++)
+                    {
+                        var lon = 0.25f * lonOffset + merdidianIndex * 90f;
+                        var position = LatLonToPosition(lat, lon, planetRadius);
+
+                        var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
+                        if (reformIndexForPosition >= platformSystem.reformData.Length)
+                        {
+                            logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
+                            continue;
+                        }
+
+                        try
+                        {
+                            platformSystem.SetReformType(reformIndexForPosition, 1);
+                            platformSystem.SetReformColor(reformIndexForPosition, 12);
+                        }
+                        catch (Exception e)
+                        {
+                            logger.LogWarning($"exception while setting reform at index {reformIndexForPosition} max={platformSystem.reformData.Length} {e.Message}");
+                        }
+                    }
+                }
+            }
+
+            // equator stripe
+            for (var lon = -179.9f; lon < 180; lon += 0.25f)
+            {
+                for (var latOffset = -1; latOffset < 1; latOffset++)
+                {
+                    var position = LatLonToPosition(0f + latOffset * 0.25f, lon, planetRadius);
+
+                    var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
+                    if (reformIndexForPosition >= platformSystem.reformData.Length)
+                    {
+                        logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
+                        continue;
+                    }
+
+                    try
+                    {
+                        platformSystem.SetReformType(reformIndexForPosition, 1);
+                        platformSystem.SetReformColor(reformIndexForPosition, 7);
+                    }
+                    catch (Exception e)
+                    {
+                        logger.LogWarning($"exception while setting reform at index {reformIndexForPosition} max={platformSystem.reformData.Length} {e.Message}");
+                    }
+                }
             }
         }
 
@@ -324,26 +323,6 @@ namespace Bulldozer
             }
         }
 
-        private static void InvokeClearPlanet()
-        {
-            Monitor.Enter(destroyFactorMutexLock);
-            var localGenRequestFlag = _genRequestFlag;
-            Monitor.Exit(destroyFactorMutexLock);
-
-            if (localGenRequestFlag)
-            {
-                logger.LogInfo("Bulldozer already in progress.");
-                return;
-            }
-
-            Monitor.Enter(destroyFactorMutexLock);
-            _genRequestFlag = true;
-            Monitor.Exit(destroyFactorMutexLock);
-            bulldozerActionThread = new Thread(ClearPlanetThread);
-            bulldozerActionThread.Start();
-        }
-
-
         private static void ClearPlanetThread()
         {
             clearStopWatch = Stopwatch.StartNew();
@@ -354,31 +333,7 @@ namespace Bulldozer
             _genRequestFlag = false;
             Monitor.Exit(destroyFactorMutexLock);
         }
-
-
-        [HarmonyPrefix]
-        [HarmonyPatch(typeof(GameMain), "Begin")]
-        public static void GameMain_Begin_Prefix()
-        {
-        }
-
-
-        private void AddClearButton()
-        {
-            // Instance._lastOffset += 2; // skip one
-            // clearButton = AddButton("clear-resource", "Clear resource", "Click to bulldoze factory",
-            //     Instance._lastOffset * 15,
-            //     bt => { InvokeClearPlanet(); }, ref ClearResourceImage);
-        }
-
-        private void AddPaveButton()
-        {
-            Instance._lastOffset++;
-            paveButton = AddButton("pave-planet", "Pave resource", "Click to pave planet",
-                Instance._lastOffset * 15,
-                bt => { InvokePavePlanet(); }, ref PaveResourceImage);
-        }
-
+        
         private void InvokePavePlanet()
         {
             var mainPlayer = GameMain.mainPlayer;
@@ -391,10 +346,6 @@ namespace Bulldozer
 
             if (platformSystem.reformData == null)
             {
-                var points = new[] { mainPlayer.position };
-                mainPlayerFactory.ComputeFlattenTerrainReform(points, mainPlayer.position, 1100, 1);
-                mainPlayerFactory.FlattenTerrainReform(mainPlayer.position, 90, 10,
-                    reformTool.reformTool.buryVeins, 10f);
                 platformSystem.EnsureReformData();
             }
 
@@ -421,8 +372,8 @@ namespace Bulldozer
                         continue;
                     }
 
-                    if (!platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)))
-                    {
+                    // if (!platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)))
+                    // {
                         tmpFlattenWorkList.Add(
                             new PaveWorkItem
                             {
@@ -430,7 +381,22 @@ namespace Bulldozer
                                 Player = mainPlayer,
                                 Factory = mainPlayerFactory
                             });
-                    }
+                    // }
+                }
+            }
+
+            foreach (var vein in planet.factory.veinPool)
+            {
+                if (vein.id > 0)
+                {
+                    tmpFlattenWorkList.Add(
+                        new PaveWorkItem
+                        {
+                            Position = vein.pos,
+                            Player = mainPlayer,
+                            Factory = mainPlayerFactory
+                        });
+                    // logger.LogDebug($"{PositionToLatLonString(vein.pos)}");
                 }
             }
 
@@ -441,8 +407,6 @@ namespace Bulldozer
                 return distance1.CompareTo(distance2);
             });
 
-            logger.LogInfo(
-                $"Created {tmpFlattenWorkList.Count} points to bulldoze over. player at {mainPlayer.position} ");
             flattenWorkList.AddRange(tmpFlattenWorkList);
             SetFlattenRequestedFlag(true);
         }
@@ -453,17 +417,8 @@ namespace Bulldozer
             _flattenRequested = value;
         }
 
-        private static ActionButton AddButton(string name, string tipTitle, string tipText, int offset,
-            Action<UIButton> action,
-            ref Image progressImage)
-        {
-            return new ActionButton(name, tipTitle, tipText, offset, action, ref progressImage);
-        }
-
         [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), "OnCategoryButtonClick")]
         public static void UIBuildMenu_OnCategoryButtonClick_Postfix(UIBuildMenu __instance)
-            //   [HarmonyPostfix, HarmonyPatch(typeof(UIStatisticsWindow), "_OnOpen")]
-            // public static void UIStatisticsWindow__OnOpen_Postfix(UIStatisticsWindow __instance)
         {
             var uiBuildMenu = __instance;
             if (logger == null || Instance == null)
@@ -474,6 +429,11 @@ namespace Bulldozer
 
             if (uiBuildMenu.currentCategory != 9)
             {
+                if (Instance.ui != null)
+                {
+                    Instance.ui.Hide();
+                }
+
                 return;
             }
 
@@ -481,8 +441,10 @@ namespace Bulldozer
             {
                 Instance.InitUi(uiBuildMenu);
             }
-
-            // UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group
+            else
+            {
+                Instance.ui.Show();
+            }
         }
 
         private void InitUi(UIBuildMenu uiBuildMenu)
@@ -490,14 +452,14 @@ namespace Bulldozer
             GameObject environmentModificationContainer = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group");
             var containerRect = environmentModificationContainer.GetComponent<RectTransform>();
             var button1 = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group/button-1");
-            logger.LogDebug($"container: {containerRect} {button1}");
             ui = containerRect.gameObject.AddComponent<UIElements>();
+            UIElements.logger = logger;
             if (containerRect == null || button1 == null)
             {
                 return;
             }
 
-            ui.AddDrawEquatorCheckbox(containerRect, button1, bt =>
+            ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
             {
                 InvokePavePlanet();
                 UIRealtimeTip.Popup("Paving");
@@ -510,7 +472,7 @@ namespace Bulldozer
             var lonRad = Math.PI / 180 * lon;
             var x = (float)(Math.Cos(latRad) * Math.Cos(lonRad));
             var z = (float)(Math.Cos(latRad) * Math.Sin(lonRad));
-            var y = (float)Math.Sin(lat);
+            var y = (float)Math.Sin(latRad);
             return new Vector3(x, y, z).normalized * earthRadius;
         }
     }
