@@ -19,6 +19,11 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.7
+Fix issue with hover text position
+Add option to skip repaving already paved locations
+Fix equator & meridian lines for planets with non-default diameter
+
 #### v1.0.6
 Added hover text to action button and checkbox and added ability to cancel execution
 

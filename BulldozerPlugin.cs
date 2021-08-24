@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.5";
+        public const string PluginVersion = "1.0.7";
 
         public static ManualLogSource logger;
 
@@ -239,15 +239,59 @@ namespace Bulldozer
 
         private void PaintGuideMarkings(PlatformSystem platformSystem, PlayerAction_Build playerActionBuild)
         {
+            PaintMeridians(platformSystem);
+            PaintEquator(platformSystem);
+        }
+
+        private void PaintEquator(PlatformSystem platformSystem)
+        {
+            // equator stripe
+            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
+            List<int> indexes = new List<int>();
+            for (var lon = -179.9f; lon < 180; lon += 0.25f)
+            {
+                for (var latOffset = -1; latOffset < 1; latOffset++)
+                {
+                    var position = LatLonToPosition(0f + latOffset * coordLineOffset, lon, platformSystem.planet.radius);
+
+                    var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
+                    if (reformIndexForPosition >= platformSystem.reformData.Length)
+                    {
+                        logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
+                        continue;
+                    }
+                    indexes.Add(reformIndexForPosition);
+                }
+            }
+            indexes.Sort();
+            InterpolateMissingIndexes(indexes);
+            foreach (var equatorIndex in indexes)
+            {
+                try
+                {
+                    platformSystem.SetReformType(equatorIndex, 1);
+                    platformSystem.SetReformColor(equatorIndex, 7);
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning($"exception while setting reform at index {equatorIndex} max={platformSystem.reformData.Length} {e.Message}");
+                }
+            }
+        }
+
+        private void PaintMeridians(PlatformSystem platformSystem)
+        {
             var planetRadius = platformSystem.planet.radius;
-            // meridians
-            for (var lat = -89.9f; lat < 90; lat += 0.25f)
+            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
+
+            var indexesToPaint = new List<int>();
+            for (var lat = -89.9f; lat < 90; lat += coordLineOffset)
             {
                 for (var lonOffset = -1; lonOffset < 1; lonOffset++)
                 {
-                    for (var merdidianIndex = 0; merdidianIndex < 4; merdidianIndex++)
+                    for (var meridianOffset = 0; meridianOffset < 4; meridianOffset++)
                     {
-                        var lon = 0.25f * lonOffset + merdidianIndex * 90f;
+                        var lon = coordLineOffset * lonOffset + meridianOffset * 90f;
                         var position = LatLonToPosition(lat, lon, planetRadius);
 
                         var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
@@ -256,45 +300,56 @@ namespace Bulldozer
                             logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
                             continue;
                         }
-
-                        try
-                        {
-                            platformSystem.SetReformType(reformIndexForPosition, 1);
-                            platformSystem.SetReformColor(reformIndexForPosition, 12);
-                        }
-                        catch (Exception e)
-                        {
-                            logger.LogWarning($"exception while setting reform at index {reformIndexForPosition} max={platformSystem.reformData.Length} {e.Message}");
-                        }
+                        indexesToPaint.Add(reformIndexForPosition);
                     }
                 }
             }
-
-            // equator stripe
-            for (var lon = -179.9f; lon < 180; lon += 0.25f)
+            indexesToPaint.Sort();
+            InterpolateMissingIndexes(indexesToPaint);
+            foreach (var meridianIndex in indexesToPaint)
             {
-                for (var latOffset = -1; latOffset < 1; latOffset++)
+                try
                 {
-                    var position = LatLonToPosition(0f + latOffset * 0.25f, lon, planetRadius);
+                    platformSystem.SetReformType(meridianIndex, 1);
+                    platformSystem.SetReformColor(meridianIndex, 12);
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning($"exception while setting reform at index {meridianIndex} max={platformSystem.reformData.Length} {e.Message}");
+                }
+            }
+        }
 
-                    var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
-                    if (reformIndexForPosition >= platformSystem.reformData.Length)
-                    {
-                        logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
-                        continue;
-                    }
+        private float GetCoordLineOffset(PlanetData planet)
+        {
+            var result = 0.25f;
+            if (planet.radius > 201)
+            {
+                // so if we step by 0.25 for a 200 radius planet, step by 0.125 for a 400 radius planet
+                result /= (planet.radius / 200f);
+            }
 
-                    try
+            return result;
+        }
+
+        private void InterpolateMissingIndexes(List<int> indexes)
+        {
+            var tempNewIndexes = new List<int>();
+            for (int i = 1; i < indexes.Count; i++)
+            {
+                var curIndex = indexes[i];
+                var prevIndex = indexes[i - 1];
+                if (prevIndex != curIndex - 1 && curIndex - prevIndex < 8)
+                {
+                    // fill in
+                    for (int j = prevIndex + 1; j < curIndex; j++)
                     {
-                        platformSystem.SetReformType(reformIndexForPosition, 1);
-                        platformSystem.SetReformColor(reformIndexForPosition, 7);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogWarning($"exception while setting reform at index {reformIndexForPosition} max={platformSystem.reformData.Length} {e.Message}");
+                        tempNewIndexes.Add(j);
                     }
                 }
             }
+            
+            indexes.AddRange(tempNewIndexes);
         }
 
         private void DoBulldozeUpdate()
@@ -371,27 +426,33 @@ namespace Bulldozer
                         continue;
                     }
 
-                    tmpFlattenWorkList.Add(
-                        new PaveWorkItem
-                        {
-                            Position = position,
-                            Player = mainPlayer,
-                            Factory = mainPlayerFactory
-                        });
+                    if (!platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)) || ui.RepaveField)
+                    {
+                        tmpFlattenWorkList.Add(
+                            new PaveWorkItem
+                            {
+                                Position = position,
+                                Player = mainPlayer,
+                                Factory = mainPlayerFactory
+                            });
+                    }
                 }
             }
 
-            foreach (var vein in planet.factory.veinPool)
+            if (ui.RepaveField)
             {
-                if (vein.id > 0)
+                foreach (var vein in planet.factory.veinPool)
                 {
-                    tmpFlattenWorkList.Add(
-                        new PaveWorkItem
-                        {
-                            Position = vein.pos,
-                            Player = mainPlayer,
-                            Factory = mainPlayerFactory
-                        });
+                    if (vein.id > 0)
+                    {
+                        tmpFlattenWorkList.Add(
+                            new PaveWorkItem
+                            {
+                                Position = vein.pos,
+                                Player = mainPlayer,
+                                Factory = mainPlayerFactory
+                            });
+                    }
                 }
             }
 
