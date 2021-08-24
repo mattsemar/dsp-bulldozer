@@ -12,11 +12,13 @@ namespace Bulldozer
 
         public GameObject DrawEquatorCheck;
         public bool DrawEquatorField = true;
+        public bool RepaveField = true;
         public Image CheckBoxImage;
+        public Image RepaveCheckBoxImage;
         public Sprite spriteChecked;
         public Sprite spriteUnChecked;
         private GameObject _newSeparator;
-        private static List<GameObject> gameObjectsToDestroy = new List<GameObject>(); 
+        private static List<GameObject> gameObjectsToDestroy = new List<GameObject>();
 
         public UIButton PaveActionButton;
         public RectTransform BulldozeButton;
@@ -34,6 +36,7 @@ namespace Bulldozer
             InitOnOffSprites();
             InitActionButton(button1, action);
             InitDrawEquatorCheckbox(environmentModificationContainer, button1);
+            InitRepaveCheckbox(environmentModificationContainer, button1);
         }
 
         private void InitActionButton(GameObject button1, Action<int> action)
@@ -73,10 +76,9 @@ namespace Bulldozer
                 DrawEquatorField = !DrawEquatorField;
                 CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
             };
-            
 
             if (countText != null)
-            { 
+            {
                 hover = Instantiate(countText, environmentModificationContainer.transform, true);
                 gameObjectsToDestroy.Add(hover.gameObject);
                 var copiedRectTransform = hover.GetComponent<RectTransform>();
@@ -87,6 +89,7 @@ namespace Bulldozer
                 copiedRectTransform.anchoredPosition = new Vector2(620, parentRect.transform.position.y - 115);
                 drawEquatorCheckboxButton.textObject = hover;
             }
+
             gameObjectsToDestroy.Add(drawEquatorCheckboxButton.gameObject);
 
             CheckBoxImage = drawEquatorCheckboxButton.gameObject.AddComponent<Image>();
@@ -108,6 +111,48 @@ namespace Bulldozer
             {
                 logger.LogWarning($"exception in sep line {e.Message}");
             }
+        }
+
+        private void InitRepaveCheckbox(RectTransform environmentModificationContainer, GameObject button1)
+        {
+            var repaveCheck = new GameObject("Repave");
+            gameObjectsToDestroy.Add(repaveCheck);
+            RectTransform rect = repaveCheck.AddComponent<RectTransform>();
+            rect.SetParent(environmentModificationContainer.transform, false);
+
+            rect.anchorMax = new Vector2(0, 1);
+            rect.anchorMin = new Vector2(0, 1);
+            rect.sizeDelta = new Vector2(20, 20);
+            rect.pivot = new Vector2(0, 0.5f);
+            rect.anchoredPosition = new Vector2(350, -120);
+            var repaveCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
+            repaveCheckboxButton.HoverText = "Uncheck to skip paving already paved areas. If unchecked veins will not be repaved";
+
+            if (countText != null)
+            {
+                var repaveHover = Instantiate(countText, environmentModificationContainer.transform, true);
+                gameObjectsToDestroy.Add(repaveHover.gameObject);
+                var copiedRectTransform = repaveHover.GetComponent<RectTransform>();
+                var parentRect = environmentModificationContainer.GetComponent<RectTransform>();
+                copiedRectTransform.anchorMin = new Vector2(0, 1);
+                copiedRectTransform.anchorMax = new Vector2(0, 1);
+                copiedRectTransform.sizeDelta = new Vector2(500, 20);
+                copiedRectTransform.anchoredPosition = new Vector2(700, parentRect.transform.position.y - 115);
+                repaveCheckboxButton.textObject = repaveHover;
+            }
+
+            gameObjectsToDestroy.Add(repaveCheckboxButton.gameObject);
+
+            RepaveCheckBoxImage = repaveCheckboxButton.gameObject.AddComponent<Image>();
+            RepaveCheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
+            gameObjectsToDestroy.Add(RepaveCheckBoxImage.gameObject);
+
+            RepaveCheckBoxImage.sprite = RepaveField ? spriteChecked : spriteUnChecked;
+            repaveCheckboxButton.onClick += data =>
+            {
+                RepaveField = !RepaveField;
+                RepaveCheckBoxImage.sprite = RepaveField ? spriteChecked : spriteUnChecked;
+            };
         }
 
         public void Unload()
@@ -152,7 +197,6 @@ namespace Bulldozer
             }
 
             var buttonHotkeyText = copiedRectTransform.transform.Find("text");
-            logger.LogDebug($"found button text {buttonHotkeyText}");
             if (buttonHotkeyText != null)
             {
                 buttonHotkeyTextComponent = buttonHotkeyText.GetComponentInChildren<Text>();
@@ -162,13 +206,14 @@ namespace Bulldozer
                 }
             }
 
-
             var copiedUiButton = copiedRectTransform.GetComponentInChildren<UIButton>();
             if (copiedUiButton != null)
             {
-                copiedUiButton.tips.itemId = 0;
+                originalRectTransform.GetComponentInChildren<UIButton>();
                 copiedUiButton.tips.tipTitle = "Bulldoze";
-                copiedUiButton.tips.tipText = "Adds foundation to entire planet. Any existing foundation colors will be lost.\nCurrently selected options for burying veins and foundation type will be used.\nGame may lag a bit after invocation. Press again to halt.";
+                copiedUiButton.tips.tipText =
+                    "Adds foundation to entire planet. Any existing foundation colors will be lost.\nCurrently selected options for burying veins and foundation type will be used.\nGame may lag a bit after invocation. Press again to halt.";
+                copiedUiButton.tips.offset = new Vector2(copiedUiButton.tips.offset.x, copiedUiButton.tips.offset.y + 100);
                 copiedUiButton.onClick += action;
             }
 
@@ -193,6 +238,8 @@ namespace Bulldozer
             BulldozeButton.gameObject.SetActive(true);
             PaveActionButton.gameObject.SetActive(true);
             CheckBoxImage.gameObject.SetActive(true);
+            if (RepaveCheckBoxImage.gameObject != null)
+                RepaveCheckBoxImage.gameObject.SetActive(true);
         }
 
         public void Hide()
@@ -200,6 +247,7 @@ namespace Bulldozer
             BulldozeButton.gameObject.SetActive(false);
             PaveActionButton.gameObject.SetActive(false);
             CheckBoxImage.gameObject.SetActive(false);
+            RepaveCheckBoxImage.gameObject.SetActive(false);
         }
     }
 
