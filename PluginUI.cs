@@ -11,8 +11,9 @@ namespace Bulldozer
         public static ManualLogSource logger;
 
         public GameObject DrawEquatorCheck;
-        public bool DrawEquatorField = true;
-        public bool RepaveField = true;
+        // use to track whether checkbox needs to be synced
+        private bool _drawEquatorField = true;
+        private bool _repaveField = true;
         public Image CheckBoxImage;
         public Image RepaveCheckBoxImage;
         public Sprite spriteChecked;
@@ -30,13 +31,12 @@ namespace Bulldozer
         public CheckboxControl drawEquatorCheckboxButton;
         private Text hover;
 
-
         public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject button1, Action<int> action)
         {
             InitOnOffSprites();
             InitActionButton(button1, action);
             InitDrawEquatorCheckbox(environmentModificationContainer, button1);
-            InitRepaveCheckbox(environmentModificationContainer, button1);
+            InitRepaveCheckbox(environmentModificationContainer);
         }
 
         private void InitActionButton(GameObject button1, Action<int> action)
@@ -68,13 +68,14 @@ namespace Bulldozer
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(350, -100);
+            rect.anchoredPosition = new Vector2(350, -90);
             drawEquatorCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
             drawEquatorCheckboxButton.HoverText = "Add a green line around equator and blue lines at meridian points";
             drawEquatorCheckboxButton.onClick += data =>
             {
-                DrawEquatorField = !DrawEquatorField;
-                CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
+                PluginConfig.addGuideLines.Value = !PluginConfig.addGuideLines.Value;
+                CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
+                _drawEquatorField = PluginConfig.addGuideLines.Value;
             };
 
             if (countText != null)
@@ -96,7 +97,7 @@ namespace Bulldozer
             CheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
             gameObjectsToDestroy.Add(CheckBoxImage.gameObject);
 
-            CheckBoxImage.sprite = DrawEquatorField ? spriteChecked : spriteUnChecked;
+            CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
             var sepLine = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/reform-group/sep-line-left-0");
             try
             {
@@ -113,7 +114,7 @@ namespace Bulldozer
             }
         }
 
-        private void InitRepaveCheckbox(RectTransform environmentModificationContainer, GameObject button1)
+        private void InitRepaveCheckbox(RectTransform environmentModificationContainer)
         {
             var repaveCheck = new GameObject("Repave");
             gameObjectsToDestroy.Add(repaveCheck);
@@ -124,7 +125,7 @@ namespace Bulldozer
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(350, -120);
+            rect.anchoredPosition = new Vector2(350, -105);
             var repaveCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
             repaveCheckboxButton.HoverText = "Uncheck to skip paving already paved areas. If unchecked veins will not be repaved";
 
@@ -147,12 +148,30 @@ namespace Bulldozer
             RepaveCheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
             gameObjectsToDestroy.Add(RepaveCheckBoxImage.gameObject);
 
-            RepaveCheckBoxImage.sprite = RepaveField ? spriteChecked : spriteUnChecked;
+            RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
             repaveCheckboxButton.onClick += data =>
             {
-                RepaveField = !RepaveField;
-                RepaveCheckBoxImage.sprite = RepaveField ? spriteChecked : spriteUnChecked;
+                // RepaveField = !RepaveField;
+                PluginConfig.repaveAll.Value = !PluginConfig.repaveAll.Value;
+                RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
+                _repaveField = PluginConfig.repaveAll.Value;
             };
+        }
+
+        public void Update()
+        {
+            if (_drawEquatorField != PluginConfig.addGuideLines.Value)
+            {
+                // value might have been updated in config manager plugin ui
+                CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
+                _drawEquatorField = PluginConfig.addGuideLines.Value;
+            }
+            if (_repaveField != PluginConfig.repaveAll.Value)
+            {
+                // sync checkbox with externally changed value
+                RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
+                _repaveField = PluginConfig.repaveAll.Value;
+            }
         }
 
         public void Unload()
