@@ -346,6 +346,7 @@ namespace Bulldozer
             BulldozeButton.gameObject.SetActive(false);
             PaveActionButton.gameObject.SetActive(false);
             CheckBoxImage.gameObject.SetActive(false);
+            RepaveCheckBoxImage.gameObject.SetActive(false);
             DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
         }
     }

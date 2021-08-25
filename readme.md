@@ -21,6 +21,9 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.12
+Fix issue where checkbox wasn't being hidden
+
 #### v1.0.11
 * Add confirmation prompt
 * Enable destruction of factory machines (assemblers, etc). By default will not do foundation when enabled
