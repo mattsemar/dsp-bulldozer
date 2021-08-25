@@ -1,23 +1,23 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Collections;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
+using Resources = Bulldozer.Properties.Resources;
 
 namespace Bulldozer
 {
     [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
     [BepInProcess("DSPGAME.exe")]
-    [SuppressMessage("ReSharper", "LocalizableElement")]
     public class BulldozerPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.10";
+        public const string PluginVersion = "1.0.11";
 
         public static ManualLogSource logger;
 
@@ -72,6 +72,8 @@ namespace Bulldozer
 
         private void ClearFactory()
         {
+            UIRealtimeTip.Popup("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
+
             clearStopWatch = new Stopwatch();
             clearStopWatch.Start();
             var phase = ItemDestructionPhase.Inserters;
@@ -262,7 +264,7 @@ namespace Bulldozer
                     PaintGuideMarkings(platformSystem);
                 }
 
-                UIRealtimeTip.Popup("Bulldozer done");
+                UIRealtimeTip.Popup("Bulldozer done adding foundation");
             }
         }
 
@@ -287,7 +289,7 @@ namespace Bulldozer
         {
             if (BulldozerWork.Count > 0)
             {
-                var countDown = PluginConfig.workItemsPerFrame.Value;
+                var countDown = PluginConfig.workItemsPerFrame.Value * 5; // takes less time so we can do more per tick
                 while (countDown-- > 0)
                     if (BulldozerWork.Count > 0)
                     {
@@ -309,11 +311,13 @@ namespace Bulldozer
                 clearStopWatch.Stop();
                 var elapsedMs = clearStopWatch.ElapsedMilliseconds;
                 logger.LogInfo($"bulldozer {elapsedMs} ms to complete");
+                UIRealtimeTip.Popup("Bulldozer done destroying factory");
             }
         }
 
         private void InvokePavePlanet()
         {
+            UIRealtimeTip.Popup("Adding foundation");
             var mainPlayer = GameMain.mainPlayer;
             var mainPlayerFactory = mainPlayer.factory;
             if (mainPlayerFactory == null) return;
@@ -408,7 +412,7 @@ namespace Bulldozer
             var uiBuildMenu = __instance;
             if (logger == null || Instance == null)
             {
-                Console.WriteLine($"Not initialized, either logger ({logger}) or Instance ({Instance}) is null");
+                Console.WriteLine(Resources.BulldozerPlugin_Not_Initialized, logger, Instance);
                 return;
             }
 
@@ -446,6 +450,12 @@ namespace Bulldozer
 
             ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
             {
+                StartCoroutine(InvokeAction(-1, () =>
+                {
+                    GameMain.mainPlayer.SetHandItems(0, 0);
+                    GameMain.mainPlayer.controller.actionBuild.reformTool._Close();
+                }));
+
                 if (FlattenWorkList.Count > 0 || BulldozerWork.Count > 0)
                 {
                     FlattenWorkList.Clear();
@@ -455,18 +465,72 @@ namespace Bulldozer
                 }
                 else
                 {
+                    var popupMessage = $"This action can take a bit to complete. Please confirm that you would like to do this: ";
                     if (PluginConfig.destroyFactoryAssemblers.Value)
                     {
-                        UIRealtimeTip.Popup("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
-                        ClearFactory();
+                        popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
+                        if (PluginConfig.flattenWithFactoryTearDown.Value)
+                        {
+                            popupMessage += $"\nAdd foundation to all locations on planet";
+                        }
                     }
                     else
                     {
-                        InvokePavePlanet();
-                        UIRealtimeTip.Popup("Adding foundation");
+                        popupMessage += $"\nAdd foundation to all locations on planet";
+                        if (PluginConfig.repaveAll.Value)
+                        {
+                            popupMessage += "\nRepave already paved areas";
+                        }
+
+                        if (PluginConfig.addGuideLines.Value)
+                        {
+                            var markingTypes = PluginConfig.addGuideLinesEquator.Value ? " equator " : "";
+                            if (PluginConfig.addGuideLinesMeridian.Value)
+                            {
+                                markingTypes += "meridians";
+                            }
+
+                            popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
+                        }
                     }
+
+
+                    UIMessageBox.Show("Bulldoze planet", popupMessage.Translate(),
+                        "Ok", "Cancel", 0, InvokePluginCommands, () => { UIRealtimeTip.Popup($"Canceled"); });
                 }
             });
         }
+
+        private IEnumerator InvokeAction(int delay, Action action)
+        {
+            logger.LogDebug("pre yield");
+            if (delay > 0)
+                yield return new WaitForSeconds(2);
+            else
+                yield return new WaitForEndOfFrame();
+            logger.LogDebug("Performing action");
+            action();
+        }
+
+        private void InvokePluginCommands()
+        {
+            if (PluginConfig.destroyFactoryAssemblers.Value)
+            {
+                ClearFactory();
+                if (PluginConfig.flattenWithFactoryTearDown.Value)
+                {
+                    InvokePavePlanet();
+                }
+            }
+            else
+            {
+                InvokePavePlanet();
+            }
+        }
     }
 }
+
+
+
+
+

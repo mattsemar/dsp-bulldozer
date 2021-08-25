@@ -59,5 +59,14 @@ namespace Bulldozer.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not initialized, either logger ({0}) or Instance ({1}) is null.
+        /// </summary>
+        internal static string BulldozerPlugin_Not_Initialized {
+            get {
+                return ResourceManager.GetString("BulldozerPlugin_Not_Initialized", resourceCulture);
+            }
+        }
     }
 }
