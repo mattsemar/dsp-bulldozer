@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.7";
+        public const string PluginVersion = "1.0.8";
 
         public static ManualLogSource logger;
 
@@ -28,20 +28,22 @@ namespace Bulldozer
 
         private static Stopwatch clearStopWatch;
 
-
         public static BulldozerPlugin Instance;
         private bool _flattenRequested;
         private Harmony harmony;
 
         private UIElements ui;
 
+
         // Awake is called once when both the game and the plugin are loaded
         private void Awake()
         {
             logger = Logger;
+            GuideMarker.logger = logger;
             Instance = this;
             harmony = new Harmony(PluginGuid);
             harmony.PatchAll(typeof(BulldozerPlugin));
+            PluginConfig.InitConfig(Config);
             Debug.Log("Bulldozer Plugin Loaded");
         }
 
@@ -49,6 +51,8 @@ namespace Bulldozer
         {
             DoBulldozeUpdate();
             DoPaveUpdate();
+            if (ui != null && ui.countText != null)
+                ui.countText.text = $"{FlattenWorkList.Count + BulldozerWork.Count}";
         }
 
 
@@ -60,7 +64,6 @@ namespace Bulldozer
             if (ui != null)
             {
                 ui.Unload();
-                // Destroy(ui.gameObject);
             }
 
             harmony.UnpatchSelf();
@@ -69,6 +72,8 @@ namespace Bulldozer
 
         private void ClearFactory()
         {
+            clearStopWatch = new Stopwatch();
+            clearStopWatch.Start();
             var phase = ItemDestructionPhase.Inserters;
             var currentPlanetFactory = GameMain.mainPlayer.planetData?.factory;
             if (currentPlanetFactory == null)
@@ -171,12 +176,11 @@ namespace Bulldozer
         {
             if (FlattenWorkList.Count > 0)
             {
-                var countDown = Math.Min(FlattenWorkList.Count, 4);
+                var countDown = Math.Min(Math.Min(FlattenWorkList.Count, PluginConfig.workItemsPerFrame.Value), 10);
                 while (countDown-- > 0)
                 {
                     var flattenTask = FlattenWorkList[0];
                     FlattenWorkList.RemoveAt(0);
-                    ui.countText.text = $"{FlattenWorkList.Count}";
 
                     var point = flattenTask.Position;
                     var planetFactory = flattenTask.Factory;
@@ -187,13 +191,14 @@ namespace Bulldozer
                     }
 
                     var reformTool = flattenTask.Player.controller.actionBuild.reformTool;
+                    bool bury = PluginConfig.buryVeinMode.Value == BuryVeinMode.Tool ? reformTool.buryVeins : PluginConfig.buryVeinMode.Value == BuryVeinMode.Bury;
 
                     try
                     {
                         planetFactory.FlattenTerrain(point, Quaternion.identity,
-                            new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: reformTool.buryVeins,
+                            new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: bury,
                             lift: true);
-                        planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, reformTool.buryVeins);
+                        planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, bury);
                     }
                     catch (Exception e)
                     {
@@ -216,12 +221,34 @@ namespace Bulldozer
                 var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
                 var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
                 if (maxReformCount == null || platformSystem == null || actionBuild == null) return;
+                // reform brush type of 7 is foundation with no decoration
+                // brush type 2 is decorated, but not painted
+                // 1 seems to be paint mode
+                int brushType = 1;
+                switch (PluginConfig.foundationDecorationMode.Value)
+                {
+                    case FoundationDecorationMode.Tool:
+                        brushType = actionBuild.reformTool.brushType;
+                        break;
+                    case FoundationDecorationMode.Paint:
+                        brushType = 1;
+                        break;
+                    case FoundationDecorationMode.Decorate:
+                        brushType = 2;
+                        break;
+                    case FoundationDecorationMode.Clear:
+                        brushType = 7;
+                        break;
+                    default:
+                        logger.LogWarning($"unexpected brush type requested {PluginConfig.foundationDecorationMode.Value}");
+                        break;
+                }
+
                 for (var index = 0; index < maxReformCount; ++index)
                     try
                     {
                         var reformToolBrushColor = actionBuild.reformTool.brushColor;
-                        var reformToolBrushType = actionBuild.reformTool.brushType;
-                        platformSystem.SetReformType(index, reformToolBrushType);
+                        platformSystem.SetReformType(index, brushType);
                         platformSystem.SetReformColor(index, reformToolBrushColor);
                     }
                     catch (Exception e)
@@ -230,133 +257,37 @@ namespace Bulldozer
                         logger.LogWarning(e.StackTrace);
                     }
 
-                if (ui.DrawEquatorField)
+                if (PluginConfig.addGuideLines.Value)
                 {
-                    PaintGuideMarkings(platformSystem, actionBuild);
+                    PaintGuideMarkings(platformSystem);
                 }
+
+                UIRealtimeTip.Popup("Bulldozer done");
             }
         }
 
-        private void PaintGuideMarkings(PlatformSystem platformSystem, PlayerAction_Build playerActionBuild)
+        private void PaintGuideMarkings(PlatformSystem platformSystem)
         {
-            PaintMeridians(platformSystem);
-            PaintEquator(platformSystem);
-        }
+            GuideMarkTypes guideMarkTypes = GuideMarkTypes.None;
 
-        private void PaintEquator(PlatformSystem platformSystem)
-        {
-            // equator stripe
-            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
-            List<int> indexes = new List<int>();
-            for (var lon = -179.9f; lon < 180; lon += 0.25f)
+            if (PluginConfig.addGuideLinesEquator.Value)
             {
-                for (var latOffset = -1; latOffset < 1; latOffset++)
-                {
-                    var position = LatLonToPosition(0f + latOffset * coordLineOffset, lon, platformSystem.planet.radius);
-
-                    var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
-                    if (reformIndexForPosition >= platformSystem.reformData.Length)
-                    {
-                        logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
-                        continue;
-                    }
-                    indexes.Add(reformIndexForPosition);
-                }
-            }
-            indexes.Sort();
-            InterpolateMissingIndexes(indexes);
-            foreach (var equatorIndex in indexes)
-            {
-                try
-                {
-                    platformSystem.SetReformType(equatorIndex, 1);
-                    platformSystem.SetReformColor(equatorIndex, 7);
-                }
-                catch (Exception e)
-                {
-                    logger.LogWarning($"exception while setting reform at index {equatorIndex} max={platformSystem.reformData.Length} {e.Message}");
-                }
-            }
-        }
-
-        private void PaintMeridians(PlatformSystem platformSystem)
-        {
-            var planetRadius = platformSystem.planet.radius;
-            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
-
-            var indexesToPaint = new List<int>();
-            for (var lat = -89.9f; lat < 90; lat += coordLineOffset)
-            {
-                for (var lonOffset = -1; lonOffset < 1; lonOffset++)
-                {
-                    for (var meridianOffset = 0; meridianOffset < 4; meridianOffset++)
-                    {
-                        var lon = coordLineOffset * lonOffset + meridianOffset * 90f;
-                        var position = LatLonToPosition(lat, lon, planetRadius);
-
-                        var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
-                        if (reformIndexForPosition >= platformSystem.reformData.Length)
-                        {
-                            logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
-                            continue;
-                        }
-                        indexesToPaint.Add(reformIndexForPosition);
-                    }
-                }
-            }
-            indexesToPaint.Sort();
-            InterpolateMissingIndexes(indexesToPaint);
-            foreach (var meridianIndex in indexesToPaint)
-            {
-                try
-                {
-                    platformSystem.SetReformType(meridianIndex, 1);
-                    platformSystem.SetReformColor(meridianIndex, 12);
-                }
-                catch (Exception e)
-                {
-                    logger.LogWarning($"exception while setting reform at index {meridianIndex} max={platformSystem.reformData.Length} {e.Message}");
-                }
-            }
-        }
-
-        private float GetCoordLineOffset(PlanetData planet)
-        {
-            var result = 0.25f;
-            if (planet.radius > 201)
-            {
-                // so if we step by 0.25 for a 200 radius planet, step by 0.125 for a 400 radius planet
-                result /= (planet.radius / 200f);
+                guideMarkTypes |= GuideMarkTypes.Equator;
             }
 
-            return result;
-        }
-
-        private void InterpolateMissingIndexes(List<int> indexes)
-        {
-            var tempNewIndexes = new List<int>();
-            for (int i = 1; i < indexes.Count; i++)
+            if (PluginConfig.addGuideLinesMeridian.Value)
             {
-                var curIndex = indexes[i];
-                var prevIndex = indexes[i - 1];
-                if (prevIndex != curIndex - 1 && curIndex - prevIndex < 8)
-                {
-                    // fill in
-                    for (int j = prevIndex + 1; j < curIndex; j++)
-                    {
-                        tempNewIndexes.Add(j);
-                    }
-                }
+                guideMarkTypes |= GuideMarkTypes.Meridian;
             }
-            
-            indexes.AddRange(tempNewIndexes);
+
+            GuideMarker.AddGuideMarks(platformSystem, guideMarkTypes);
         }
 
         private void DoBulldozeUpdate()
         {
             if (BulldozerWork.Count > 0)
             {
-                var countDown = 5;
+                var countDown = PluginConfig.workItemsPerFrame.Value;
                 while (countDown-- > 0)
                     if (BulldozerWork.Count > 0)
                     {
@@ -379,14 +310,6 @@ namespace Bulldozer
                 var elapsedMs = clearStopWatch.ElapsedMilliseconds;
                 logger.LogInfo($"bulldozer {elapsedMs} ms to complete");
             }
-        }
-
-        private static void ClearPlanetThread()
-        {
-            clearStopWatch = Stopwatch.StartNew();
-            logger.LogInfo("Bulldozer thread started.");
-
-            Instance.ClearFactory();
         }
 
         private void InvokePavePlanet()
@@ -413,11 +336,17 @@ namespace Bulldozer
             FlattenWorkList.Clear();
             var tmpFlattenWorkList = new List<PaveWorkItem>();
             platformSystem.EnsureReformData();
-            for (var lat = -89; lat < 90; lat += 9)
+            var adjustedOffset = (int)GuideMarker.GetCoordLineOffset(planet, 9);
+            if (adjustedOffset != 9)
             {
-                for (var lon = -179; lon < 180; lon += 9)
+                logger.LogDebug($"using coord offset of {adjustedOffset} due to planet size == {planet.radius}");
+            }
+
+            for (var lat = -89; lat < 90; lat += adjustedOffset)
+            {
+                for (var lon = -179; lon < 180; lon += adjustedOffset)
                 {
-                    var position = LatLonToPosition(lat, lon, planet.radius);
+                    var position = GuideMarker.LatLonToPosition(lat, lon, planet.radius);
 
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
                     if (reformIndexForPosition >= platformSystem.reformData.Length)
@@ -426,7 +355,7 @@ namespace Bulldozer
                         continue;
                     }
 
-                    if (!platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)) || ui.RepaveField)
+                    if (!platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)) || PluginConfig.repaveAll.Value)
                     {
                         tmpFlattenWorkList.Add(
                             new PaveWorkItem
@@ -439,7 +368,7 @@ namespace Bulldozer
                 }
             }
 
-            if (ui.RepaveField)
+            if (PluginConfig.repaveAll.Value)
             {
                 foreach (var vein in planet.factory.veinPool)
                 {
@@ -517,9 +446,10 @@ namespace Bulldozer
 
             ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
             {
-                if (FlattenWorkList.Count > 0)
+                if (FlattenWorkList.Count > 0 || BulldozerWork.Count > 0)
                 {
                     FlattenWorkList.Clear();
+                    BulldozerWork.Clear();
                     UIRealtimeTip.Popup("Stopping...");
                     ui.countText.text = $"{FlattenWorkList.Count}";
                 }
@@ -527,18 +457,13 @@ namespace Bulldozer
                 {
                     InvokePavePlanet();
                     UIRealtimeTip.Popup("Adding foundation");
+                    if (PluginConfig.destroyFactoryAssemblers.Value)
+                    {
+                        UIRealtimeTip.Popup("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
+                        ClearFactory();
+                    }
                 }
             });
-        }
-
-        private static Vector3 LatLonToPosition(float lat, float lon, float earthRadius)
-        {
-            var latRad = Math.PI / 180 * lat;
-            var lonRad = Math.PI / 180 * lon;
-            var x = (float)(Math.Cos(latRad) * Math.Cos(lonRad));
-            var z = (float)(Math.Cos(latRad) * Math.Sin(lonRad));
-            var y = (float)Math.Sin(latRad);
-            return new Vector3(x, y, z).normalized * earthRadius;
         }
     }
 }
