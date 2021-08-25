@@ -11,11 +11,14 @@ namespace Bulldozer
         public static ManualLogSource logger;
 
         public GameObject DrawEquatorCheck;
+
         // use to track whether checkbox needs to be synced
         private bool _drawEquatorField = true;
         private bool _repaveField = true;
-        public Image CheckBoxImage;
-        public Image RepaveCheckBoxImage;
+        private bool _destroyFactoryMachines = false;
+        [NonSerialized] public Image CheckBoxImage;
+        [NonSerialized] public Image RepaveCheckBoxImage;
+        [NonSerialized] public Image DestroyMachinesCheckBoxImage;
         public Sprite spriteChecked;
         public Sprite spriteUnChecked;
         private GameObject _newSeparator;
@@ -30,6 +33,16 @@ namespace Bulldozer
         private Transform _bulldozeIcon;
         public CheckboxControl drawEquatorCheckboxButton;
         private Text hover;
+        private UIButton mainActionButton;
+
+        private const string DEFAULT_TIP_MESSAGE =
+            "Adds foundation to entire planet. Any existing foundation colors will be lost.\nCurrently selected options for burying veins and foundation type will be used.\nGame may lag a bit after invocation. Press again to halt.";
+
+        private const string DEFAULT_TIP_MESSAGE_DESTROY_FACTORY =
+            "Destroy all factory machines.\nGame may lag a bit after invocation. Press again to halt.";
+
+        private bool currentTipMessageIsDefault = true;
+
 
         public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject button1, Action<int> action)
         {
@@ -37,6 +50,7 @@ namespace Bulldozer
             InitActionButton(button1, action);
             InitDrawEquatorCheckbox(environmentModificationContainer, button1);
             InitRepaveCheckbox(environmentModificationContainer);
+            InitDestroyMachinesCheckbox(environmentModificationContainer);
         }
 
         private void InitActionButton(GameObject button1, Action<int> action)
@@ -158,6 +172,49 @@ namespace Bulldozer
             };
         }
 
+        private void InitDestroyMachinesCheckbox(RectTransform environmentModificationContainer)
+        {
+            var destroyCheck = new GameObject("DestroyMachines");
+            gameObjectsToDestroy.Add(destroyCheck);
+            RectTransform rect = destroyCheck.AddComponent<RectTransform>();
+            rect.SetParent(environmentModificationContainer.transform, false);
+
+            rect.anchorMax = new Vector2(0, 1);
+            rect.anchorMin = new Vector2(0, 1);
+            rect.sizeDelta = new Vector2(20, 20);
+            rect.pivot = new Vector2(0, 0.5f);
+            rect.anchoredPosition = new Vector2(350, -120);
+            var destroyMachinesButton = rect.gameObject.AddComponent<CheckboxControl>();
+            destroyMachinesButton.HoverText = "Clear all factory machines. Skip adding foundation. Edit property FlattenWithFactoryTearDown to do both";
+
+            if (countText != null)
+            {
+                var destroyHover = Instantiate(countText, environmentModificationContainer.transform, true);
+                gameObjectsToDestroy.Add(destroyHover.gameObject);
+                var copiedRectTransform = destroyHover.GetComponent<RectTransform>();
+                var parentRect = environmentModificationContainer.GetComponent<RectTransform>();
+                copiedRectTransform.anchorMin = new Vector2(0, 1);
+                copiedRectTransform.anchorMax = new Vector2(0, 1);
+                copiedRectTransform.sizeDelta = new Vector2(800, 20);
+                copiedRectTransform.anchoredPosition = new Vector2(700, parentRect.transform.position.y - 115);
+                destroyMachinesButton.textObject = destroyHover;
+            }
+
+            gameObjectsToDestroy.Add(destroyMachinesButton.gameObject);
+
+            DestroyMachinesCheckBoxImage = destroyMachinesButton.gameObject.AddComponent<Image>();
+            DestroyMachinesCheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
+            gameObjectsToDestroy.Add(DestroyMachinesCheckBoxImage.gameObject);
+
+            DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
+            destroyMachinesButton.onClick += data =>
+            {
+                PluginConfig.destroyFactoryAssemblers.Value = !PluginConfig.destroyFactoryAssemblers.Value;
+                DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
+                _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
+            };
+        }
+
         public void Update()
         {
             if (_drawEquatorField != PluginConfig.addGuideLines.Value)
@@ -166,11 +223,33 @@ namespace Bulldozer
                 CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
                 _drawEquatorField = PluginConfig.addGuideLines.Value;
             }
+
             if (_repaveField != PluginConfig.repaveAll.Value)
             {
                 // sync checkbox with externally changed value
                 RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
                 _repaveField = PluginConfig.repaveAll.Value;
+            }
+
+            if (_destroyFactoryMachines != PluginConfig.destroyFactoryAssemblers.Value)
+            {
+                // sync checkbox with externally changed value
+                DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
+                _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
+            }
+
+            if (_destroyFactoryMachines)
+            {
+                if (mainActionButton != null && currentTipMessageIsDefault)
+                {
+                    currentTipMessageIsDefault = false;
+                    mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY;
+                }
+            }
+            else if (mainActionButton != null && !currentTipMessageIsDefault)
+            {
+                currentTipMessageIsDefault = true;
+                mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE;
             }
         }
 
@@ -225,15 +304,14 @@ namespace Bulldozer
                 }
             }
 
-            var copiedUiButton = copiedRectTransform.GetComponentInChildren<UIButton>();
-            if (copiedUiButton != null)
+            mainActionButton = copiedRectTransform.GetComponentInChildren<UIButton>();
+            if (mainActionButton != null)
             {
                 originalRectTransform.GetComponentInChildren<UIButton>();
-                copiedUiButton.tips.tipTitle = "Bulldoze";
-                copiedUiButton.tips.tipText =
-                    "Adds foundation to entire planet. Any existing foundation colors will be lost.\nCurrently selected options for burying veins and foundation type will be used.\nGame may lag a bit after invocation. Press again to halt.";
-                copiedUiButton.tips.offset = new Vector2(copiedUiButton.tips.offset.x, copiedUiButton.tips.offset.y + 100);
-                copiedUiButton.onClick += action;
+                mainActionButton.tips.tipTitle = "Bulldoze";
+                mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE;
+                mainActionButton.tips.offset = new Vector2(mainActionButton.tips.offset.x, mainActionButton.tips.offset.y + 100);
+                mainActionButton.onClick += action;
             }
 
             CountTransform = copiedRectTransform.transform.Find("count");
@@ -259,6 +337,8 @@ namespace Bulldozer
             CheckBoxImage.gameObject.SetActive(true);
             if (RepaveCheckBoxImage.gameObject != null)
                 RepaveCheckBoxImage.gameObject.SetActive(true);
+            if (DestroyMachinesCheckBoxImage.gameObject != null)
+                DestroyMachinesCheckBoxImage.gameObject.SetActive(true);
         }
 
         public void Hide()
@@ -266,7 +346,7 @@ namespace Bulldozer
             BulldozeButton.gameObject.SetActive(false);
             PaveActionButton.gameObject.SetActive(false);
             CheckBoxImage.gameObject.SetActive(false);
-            RepaveCheckBoxImage.gameObject.SetActive(false);
+            DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
         }
     }
 

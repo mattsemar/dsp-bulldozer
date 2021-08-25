@@ -5,7 +5,9 @@ Takes about a minute to complete (depends on how much of planet is already flatt
 
 Checkbox next to the action button controls whether lines will be painted at the equator and at the meridians.
 
-Note: some veins may not be raised (or lowered) on subsequent invocations. 
+Note: some veins may not be raised (or lowered) on subsequent invocations.
+
+Now supports destruction of factory machines
 
 ## How to install
 
@@ -18,6 +20,10 @@ Extract the archive file and drag `Bulldozer.dll` into the `BepInEx/plugins` dir
 Click the `Install with Mod Manager` link above.
 
 ## Changelog
+
+#### v1.0.11
+* Add confirmation prompt
+* Enable destruction of factory machines (assemblers, etc). By default will not do foundation when enabled
 
 #### v1.0.10
 Correct version

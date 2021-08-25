@@ -46,6 +46,9 @@ namespace Bulldozer
 
         // dangerous, don't enable unless you are certain
         public static ConfigEntry<bool> destroyFactoryAssemblers;
+        
+        // enable normal action of plugin when destroyAssemblers is enabled
+        public static ConfigEntry<bool> flattenWithFactoryTearDown;
 
 
         public static void InitConfig(ConfigFile configFile)
@@ -67,7 +70,10 @@ namespace Bulldozer
                 "Allows disabling of the meridian guidelines individually. No effect if AddGuideLines is disabled");
 
             destroyFactoryAssemblers = configFile.Bind("Destruction", "DestroyFactoryAssemblers", false,
-                "Don't enable this, it makes it so that your factory machines (labs, assemblers, etc) are also destroyed. It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process ");
+                "DANGEROUS - Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process. ");
+            flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
+                "Use this only to enable adding foundation when destroying existing factory");
+
         }
     }
 }
