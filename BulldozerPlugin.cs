@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.9";
+        public const string PluginVersion = "1.0.10";
 
         public static ManualLogSource logger;
 
