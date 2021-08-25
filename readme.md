@@ -19,6 +19,9 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.9
+Make hidden feature execution independent of foundation adding
+
 #### v1.0.8
 1. Added support for BepInEx Configuration
 2. Add config option for overriding raise/bury veins, defaults to using same settings as game ui

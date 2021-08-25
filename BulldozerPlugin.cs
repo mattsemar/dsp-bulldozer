@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.8";
+        public const string PluginVersion = "1.0.9";
 
         public static ManualLogSource logger;
 
@@ -455,12 +455,15 @@ namespace Bulldozer
                 }
                 else
                 {
-                    InvokePavePlanet();
-                    UIRealtimeTip.Popup("Adding foundation");
                     if (PluginConfig.destroyFactoryAssemblers.Value)
                     {
                         UIRealtimeTip.Popup("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
                         ClearFactory();
+                    }
+                    else
+                    {
+                        InvokePavePlanet();
+                        UIRealtimeTip.Popup("Adding foundation");
                     }
                 }
             });
