@@ -40,6 +40,7 @@ namespace Bulldozer
 
         public static ConfigEntry<bool> addGuideLinesEquator;
         public static ConfigEntry<bool> addGuideLinesMeridian;
+        public static ConfigEntry<bool> addGuideLinesTropic;
 
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
@@ -68,12 +69,13 @@ namespace Bulldozer
                 "Allows disabling of the equator guideline individually. No effect if AddGuideLines is disabled");
             addGuideLinesMeridian = configFile.Bind("Paint", "AddGuideLinesMeridian", true,
                 "Allows disabling of the meridian guidelines individually. No effect if AddGuideLines is disabled");
+            addGuideLinesTropic = configFile.Bind("Paint", "AddGuideLinesTropic", false,
+                "Allows disabling of the tropic guidelines individually. No effect if AddGuideLines is disabled. Currently bugged with larger radius planets");
 
             destroyFactoryAssemblers = configFile.Bind("Destruction", "DestroyFactoryAssemblers", false,
                 "DANGEROUS - Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process. ");
             flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
                 "Use this only to enable adding foundation when destroying existing factory");
-
         }
     }
 }

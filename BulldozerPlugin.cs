@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.12";
+        public const string PluginVersion = "1.0.13";
 
         public static ManualLogSource logger;
 
@@ -28,21 +28,20 @@ namespace Bulldozer
 
         private static Stopwatch clearStopWatch;
 
-        public static BulldozerPlugin Instance;
+        public static BulldozerPlugin instance;
         private bool _flattenRequested;
-        private Harmony harmony;
+        private Harmony _harmony;
 
-        private UIElements ui;
-
+        private UIElements _ui;
 
         // Awake is called once when both the game and the plugin are loaded
         private void Awake()
         {
             logger = Logger;
             GuideMarker.logger = logger;
-            Instance = this;
-            harmony = new Harmony(PluginGuid);
-            harmony.PatchAll(typeof(BulldozerPlugin));
+            instance = this;
+            _harmony = new Harmony(PluginGuid);
+            _harmony.PatchAll(typeof(BulldozerPlugin));
             PluginConfig.InitConfig(Config);
             Debug.Log("Bulldozer Plugin Loaded");
         }
@@ -51,8 +50,8 @@ namespace Bulldozer
         {
             DoBulldozeUpdate();
             DoPaveUpdate();
-            if (ui != null && ui.countText != null)
-                ui.countText.text = $"{FlattenWorkList.Count + BulldozerWork.Count}";
+            if (_ui != null && _ui.countText != null)
+                _ui.countText.text = $"{FlattenWorkList.Count + BulldozerWork.Count}";
         }
 
 
@@ -61,12 +60,12 @@ namespace Bulldozer
             // For ScriptEngine hot-reloading
             BulldozerWork?.Clear();
             FlattenWorkList?.Clear();
-            if (ui != null)
+            if (_ui != null)
             {
-                ui.Unload();
+                _ui.Unload();
             }
 
-            harmony.UnpatchSelf();
+            _harmony.UnpatchSelf();
         }
 
 
@@ -147,7 +146,25 @@ namespace Bulldozer
                 phase++;
             }
 
+            AddTasksForBluePrintGhosts(currentPlanetFactory);
+
             Logger.LogDebug($"added {BulldozerWork.Count} items to delete {countsByPhase}");
+        }
+
+        private void AddTasksForBluePrintGhosts(PlanetFactory currentPlanetFactory)
+        {
+            foreach (var prebuildData in currentPlanetFactory.prebuildPool)
+            {
+                if (prebuildData.id < 1)
+                    continue;
+                BulldozerWork.Add(new ClearFactoryWorkItem
+                {
+                    Phase = ItemDestructionPhase.Other,
+                    Player = GameMain.mainPlayer,
+                    ItemId = -prebuildData.id,
+                    PlanetFactory = currentPlanetFactory
+                });
+            }
         }
 
         public static bool RemoveBuild(Player player, PlanetFactory factory, int objId)
@@ -219,6 +236,7 @@ namespace Bulldozer
             {
                 logger.LogDebug($"repaint requested");
                 SetFlattenRequestedFlag(false);
+                // ReSharper disable once InconsistentNaming
                 var maxReformCount = GameMain.mainPlayer?.factory?.platformSystem.maxReformCount;
                 var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
                 var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
@@ -280,6 +298,11 @@ namespace Bulldozer
             if (PluginConfig.addGuideLinesMeridian.Value)
             {
                 guideMarkTypes |= GuideMarkTypes.Meridian;
+            }
+
+            if (PluginConfig.addGuideLinesTropic.Value)
+            {
+                guideMarkTypes |= GuideMarkTypes.Tropic;
             }
 
             GuideMarker.AddGuideMarks(platformSystem, guideMarkTypes);
@@ -406,33 +429,50 @@ namespace Bulldozer
             _flattenRequested = value;
         }
 
+        [HarmonyPostfix, HarmonyPatch(typeof(GameScenarioLogic),  "NotifyOnUnlockTech")]
+        public static void GameScenarioLogic_NotifyOnUnlockTech_Postfix(int techId)
+        {
+            if (instance._ui == null || instance._ui.TechUnlockedState)
+            {
+                return;
+            }
+            TechProto techProto = LDB.techs.Select(techId);
+            
+            if (techProto.Level == 3 && techProto.Name.Contains("宇宙探索"))
+            {
+                instance._ui.TechUnlockedState = true;
+            }
+            Console.WriteLine($"tech proto not matched {JsonUtility.ToJson(techProto)}");
+        }
+        
         [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), "OnCategoryButtonClick")]
         public static void UIBuildMenu_OnCategoryButtonClick_Postfix(UIBuildMenu __instance)
         {
             var uiBuildMenu = __instance;
-            if (logger == null || Instance == null)
+            if (logger == null || instance == null)
             {
-                Console.WriteLine(Resources.BulldozerPlugin_Not_Initialized, logger, Instance);
+                Console.WriteLine(Resources.BulldozerPlugin_Not_Initialized, logger, instance);
                 return;
             }
 
             if (uiBuildMenu.currentCategory != 9)
             {
-                if (Instance.ui != null)
+                if (instance._ui != null)
                 {
-                    Instance.ui.Hide();
+                    instance._ui.Hide();
                 }
 
                 return;
             }
 
-            if (Instance.ui == null)
+            if (instance._ui == null)
             {
-                Instance.InitUi(uiBuildMenu);
+                instance.InitUi(uiBuildMenu);
             }
             else
             {
-                Instance.ui.Show();
+                instance._ui.TechUnlockedState = instance.CheckResearchedTech();
+                instance._ui.Show();
             }
         }
 
@@ -441,14 +481,14 @@ namespace Bulldozer
             GameObject environmentModificationContainer = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group");
             var containerRect = environmentModificationContainer.GetComponent<RectTransform>();
             var button1 = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group/button-1");
-            ui = containerRect.gameObject.AddComponent<UIElements>();
+            _ui = containerRect.gameObject.AddComponent<UIElements>();
             UIElements.logger = logger;
             if (containerRect == null || button1 == null)
             {
                 return;
             }
 
-            ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
+            _ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
             {
                 StartCoroutine(InvokeAction(-1, () =>
                 {
@@ -461,11 +501,11 @@ namespace Bulldozer
                     FlattenWorkList.Clear();
                     BulldozerWork.Clear();
                     UIRealtimeTip.Popup("Stopping...");
-                    ui.countText.text = $"{FlattenWorkList.Count}";
+                    _ui.countText.text = $"{FlattenWorkList.Count}";
                 }
                 else
                 {
-                    var popupMessage = $"This action can take a bit to complete. Please confirm that you would like to do this: ";
+                    var popupMessage = $"This action can take a bit to complete. Please confirm that you would like to do the following: ";
                     if (PluginConfig.destroyFactoryAssemblers.Value)
                     {
                         popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
@@ -499,6 +539,28 @@ namespace Bulldozer
                         "Ok", "Cancel", 0, InvokePluginCommands, () => { UIRealtimeTip.Popup($"Canceled"); });
                 }
             });
+
+            _ui.TechUnlockedState = CheckResearchedTech();
+        }
+
+        private bool CheckResearchedTech()
+        {
+            TechProto requiredTech = null;
+            foreach (TechProto techProto in new List<TechProto>(LDB._techs.dataArray))
+            {
+                if (techProto.Name.Contains("宇宙探索") && techProto.Level == 3)
+                {
+                    requiredTech = techProto;
+                }
+            }
+
+            if (requiredTech == null)
+            {
+                logger.LogWarning($"did not find universe exploration tech item, assuming unlocked");
+                return true;
+            }
+
+            return GameMain.history.techStates[requiredTech.ID].unlocked;
         }
 
         private IEnumerator InvokeAction(int delay, Action action)

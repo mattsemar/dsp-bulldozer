@@ -42,6 +42,26 @@ namespace Bulldozer
             "Destroy all factory machines.\nGame may lag a bit after invocation. Press again to halt.";
 
         private bool currentTipMessageIsDefault = true;
+        
+        private bool _techUnlocked = false;
+        public bool TechUnlockedState
+        {
+            get => _techUnlocked;
+            set
+            {
+                _techUnlocked = value;
+                if (!_techUnlocked)
+                {
+                    mainActionButton.button.interactable = false;
+                    mainActionButton.tips.tipText = "Research Universe Exploration 3 to Unlock";
+                }
+                else
+                {
+                    mainActionButton.button.interactable = true;
+                    mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE;
+                }
+            }
+        }
 
 
         public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject button1, Action<int> action)

@@ -21,6 +21,9 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.13
+Add Universe Exploration 3 as a prerequisite, fix issue with meridian line being too thin at pole. Add tropic line painting
+
 #### v1.0.12
 Fix issue where checkbox wasn't being hidden
 
@@ -35,12 +38,12 @@ Correct version
 Make hidden feature execution independent of foundation adding
 
 #### v1.0.8
-1. Added support for BepInEx Configuration
-2. Add config option for overriding raise/bury veins, defaults to using same settings as game ui
-3. Add config option for overriding foundation decoration style, default is to follow game ui setting
-4. Add config option to enable skipping equator or meridian painting (individually)
-5. Add config option for number of update actions executed on each frame
-6. Added better support for larger radius planets
+* Added support for BepInEx Configuration
+* Add config option for overriding raise/bury veins, defaults to using same settings as game ui
+* Add config option for overriding foundation decoration style, default is to follow game ui setting 
+* Add config option to enable skipping equator or meridian painting (individually)
+* Add config option for number of update actions executed on each frame
+* Added better support for larger radius planets
 
 #### v1.0.7
 Fix issue with hover text position

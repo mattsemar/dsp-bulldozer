@@ -18,6 +18,7 @@ namespace Bulldozer
     public class GuideMarker
     {
         public static ManualLogSource logger;
+        private static readonly float[] TropicLats = { 86f + 11f / 60f, 84.5f, 82.5f, 79.1f, 75.25f, 70.0f + 11.0f / 60f, 64.75f, 55f + 29f / 60f, 46.75f, 28.75f };
 
         public static void AddGuideMarks(PlatformSystem platformSystem, GuideMarkTypes types)
         {
@@ -39,14 +40,14 @@ namespace Bulldozer
                 }
             }
 
+            if ((types & GuideMarkTypes.Tropic) == GuideMarkTypes.Tropic)
+            {
+                PaintTropics(platformSystem);
+            }
+
             if ((types & GuideMarkTypes.Meridian) == GuideMarkTypes.Meridian)
             {
                 PaintMeridians(platformSystem);
-            }
-
-            if ((types & GuideMarkTypes.Segment) == GuideMarkTypes.Segment)
-            {
-                // PaintTropics(platformSystem);
             }
 
             if ((types & GuideMarkTypes.Equator) == GuideMarkTypes.Equator)
@@ -105,7 +106,26 @@ namespace Bulldozer
                 for (var meridianOffset = 0; meridianOffset < 4; meridianOffset++)
                 {
                     var lonOffsetMin = -1;
+                    // this is all to handle a bug where the 4th meridian line would be too skinny near the poles
+                    if (Math.Abs(lat) > TropicLats[5])
+                    {
+                        lonOffsetMin = -3;
+                    }
+                    
+                    if (Math.Abs(lat) > TropicLats[5])
+                    {
+                        lonOffsetMin = -3;
+                    }
+                    if (Math.Abs(lat) > TropicLats[2])
+                    {
+                        lonOffsetMin -= 2;
+                    }
+                    if (Math.Abs(lat) > TropicLats[1])
+                    {
+                        lonOffsetMin -= 5;
+                    }
                     var lonOffsetMax = 2;
+
                     HashSet<int> actualIndexes = new HashSet<int>();
                     for (var lonOffset = lonOffsetMin; lonOffset < lonOffsetMax; lonOffset++)
                     {
@@ -113,12 +133,6 @@ namespace Bulldozer
                         var position = LatLonToPosition(lat, lon, planetRadius);
 
                         var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
-                        if (reformIndexForPosition >= platformSystem.reformData.Length || reformIndexForPosition < 0)
-                        {
-                            logger.LogDebug($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
-                            continue;
-                        }
-
                         indexesToPaint.Add(reformIndexForPosition);
                         actualIndexes.Add(reformIndexForPosition);
                     }
@@ -144,6 +158,31 @@ namespace Bulldozer
 
         private static void PaintTropics(PlatformSystem platformSystem)
         {
+
+            var signs = new[] { 1, -1 };
+            var indexes = new List<int>();
+            foreach (var latInDegrees in TropicLats)
+            {
+                foreach (var sign in signs)
+                {
+                    for (var lon = -179.9f; lon < 180; lon += 0.25f)
+                    {
+                        var position = LatLonToPosition(latInDegrees * sign, lon, platformSystem.planet.radius);
+
+                        var reformIndexForSegment = platformSystem.GetReformIndexForPosition(position);
+                        if (reformIndexForSegment < 0)
+                            continue;
+                        indexes.Add(reformIndexForSegment);
+                    }
+                }
+            }
+
+            InterpolateMissingIndexes(indexes);
+            foreach (var ndx in indexes)
+            {
+                platformSystem.SetReformType(ndx, 1);
+                platformSystem.SetReformColor(ndx, 2);
+            }
         }
 
         public static float GetCoordLineOffset(PlanetData planet, float baseRate = 0.25f)
