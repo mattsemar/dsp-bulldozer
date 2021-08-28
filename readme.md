@@ -3,11 +3,11 @@
 Flatten an entire planet. Levels and adds foundation to each spot. Uses the current settings for burying veins and foundation color.
 Takes about a minute to complete (depends on how much of planet is already flattened).
 
-Checkbox next to the action button controls whether lines will be painted at the equator and at the meridians.
+Checkbox next to the action button controls whether guide lines will be added. Config controls types (equator, meridian, tropic)
 
 Note: some veins may not be raised (or lowered) on subsequent invocations.
 
-Now supports destruction of factory machines
+Now supports destruction of factory machines. Use DeleteFactoryTrash config property to automatically delete items that would be littered
 
 ## How to install
 
@@ -20,6 +20,9 @@ Extract the archive file and drag `Bulldozer.dll` into the `BepInEx/plugins` dir
 Click the `Install with Mod Manager` link above.
 
 ## Changelog
+
+#### v1.0.14
+Add option to automatically delete items that would have been littered
 
 #### v1.0.13
 Add Universe Exploration 3 as a prerequisite, fix issue with meridian line being too thin at pole. Add tropic line painting

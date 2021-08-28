@@ -47,6 +47,7 @@ namespace Bulldozer
 
         // dangerous, don't enable unless you are certain
         public static ConfigEntry<bool> destroyFactoryAssemblers;
+        public static ConfigEntry<bool> deleteFactoryTrash;
         
         // enable normal action of plugin when destroyAssemblers is enabled
         public static ConfigEntry<bool> flattenWithFactoryTearDown;
@@ -74,6 +75,8 @@ namespace Bulldozer
 
             destroyFactoryAssemblers = configFile.Bind("Destruction", "DestroyFactoryAssemblers", false,
                 "DANGEROUS - Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process. ");
+            deleteFactoryTrash = configFile.Bind("Destruction", "DeleteFactoryTrash", false,
+                "Erase all items littered while destroying factory items");
             flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
                 "Use this only to enable adding foundation when destroying existing factory");
         }

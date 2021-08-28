@@ -1,6 +1,6 @@
 {
     "name":  "Bulldozer",
-    "version_number":  "1.0.13",
+    "version_number":  "1.0.14",
     "website_url":  "https://github.com/mattsemar/dsp-bulldozer",
     "description":  "Flattens planet by applying foundation",
     "dependencies":  [

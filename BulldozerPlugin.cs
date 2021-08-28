@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.13";
+        public const string PluginVersion = "1.0.14";
 
         public static ManualLogSource logger;
 
@@ -153,6 +153,7 @@ namespace Bulldozer
 
         private void AddTasksForBluePrintGhosts(PlanetFactory currentPlanetFactory)
         {
+            int ctr = 0;
             foreach (var prebuildData in currentPlanetFactory.prebuildPool)
             {
                 if (prebuildData.id < 1)
@@ -164,7 +165,12 @@ namespace Bulldozer
                     ItemId = -prebuildData.id,
                     PlanetFactory = currentPlanetFactory
                 });
+                ctr++;
             }
+            if (ctr > 0)
+                UIRealtimeTip.Popup($"Found {ctr} build ghosts");
+            else 
+                logger.LogDebug($"no ghosts found");
         }
 
         public static bool RemoveBuild(Player player, PlanetFactory factory, int objId)
@@ -312,7 +318,7 @@ namespace Bulldozer
         {
             if (BulldozerWork.Count > 0)
             {
-                var countDown = PluginConfig.workItemsPerFrame.Value * 5; // takes less time so we can do more per tick
+                var countDown = PluginConfig.workItemsPerFrame.Value * 10; // takes less time so we can do more per tick
                 while (countDown-- > 0)
                     if (BulldozerWork.Count > 0)
                     {
@@ -442,7 +448,23 @@ namespace Bulldozer
             {
                 instance._ui.TechUnlockedState = true;
             }
-            Console.WriteLine($"tech proto not matched {JsonUtility.ToJson(techProto)}");
+            logger.LogDebug($"tech proto not matched {JsonUtility.ToJson(techProto)}");
+        }
+
+        [HarmonyPrefix, HarmonyPatch(typeof(Player),  "ThrowTrash")]
+        public static bool Player_ThrowTrash_Prefix()
+        {
+            if (instance == null || instance._ui == null || BulldozerWork.Count == 0)
+            {
+                return true;
+            }
+        
+            if (PluginConfig.deleteFactoryTrash.Value)
+            {
+                return false;
+            }
+        
+            return true;
         }
         
         [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), "OnCategoryButtonClick")]
@@ -509,6 +531,10 @@ namespace Bulldozer
                     if (PluginConfig.destroyFactoryAssemblers.Value)
                     {
                         popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
+                        if (PluginConfig.deleteFactoryTrash.Value)
+                        {
+                            popupMessage += $"\nDelete all littered factory items (existing litter should not be affected)";
+                        }
                         if (PluginConfig.flattenWithFactoryTearDown.Value)
                         {
                             popupMessage += $"\nAdd foundation to all locations on planet";
@@ -591,6 +617,7 @@ namespace Bulldozer
         }
     }
 }
+
 
 
 
