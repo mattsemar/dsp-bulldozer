@@ -101,29 +101,33 @@ namespace Bulldozer
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
 
             var indexesToPaint = new List<int>();
+            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
             for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
             {
                 for (var meridianOffset = 0; meridianOffset < 4; meridianOffset++)
                 {
                     var lonOffsetMin = -1;
                     // this is all to handle a bug where the 4th meridian line would be too skinny near the poles
-                    if (Math.Abs(lat) > TropicLats[5])
+                    if (Math.Abs(lat) > tropicLatitudes[5])
                     {
                         lonOffsetMin = -3;
                     }
-                    
-                    if (Math.Abs(lat) > TropicLats[5])
+
+                    if (Math.Abs(lat) > tropicLatitudes[4])
                     {
                         lonOffsetMin = -3;
                     }
-                    if (Math.Abs(lat) > TropicLats[2])
+
+                    if (Math.Abs(lat) > tropicLatitudes[2])
                     {
                         lonOffsetMin -= 2;
                     }
-                    if (Math.Abs(lat) > TropicLats[1])
+
+                    if (Math.Abs(lat) > tropicLatitudes[1])
                     {
                         lonOffsetMin -= 5;
                     }
+
                     var lonOffsetMax = 2;
 
                     HashSet<int> actualIndexes = new HashSet<int>();
@@ -158,31 +162,57 @@ namespace Bulldozer
 
         private static void PaintTropics(PlatformSystem platformSystem)
         {
-
+            var latitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
             var signs = new[] { 1, -1 };
             var indexes = new List<int>();
-            foreach (var latInDegrees in TropicLats)
+            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
+            foreach (var latInDegrees in latitudes)
             {
                 foreach (var sign in signs)
                 {
-                    for (var lon = -179.9f; lon < 180; lon += 0.25f)
+                    for (var lon = -179.9f; lon < 180; lon += coordLineOffset)
                     {
                         var position = LatLonToPosition(latInDegrees * sign, lon, platformSystem.planet.radius);
 
                         var reformIndexForSegment = platformSystem.GetReformIndexForPosition(position);
-                        if (reformIndexForSegment < 0)
-                            continue;
-                        indexes.Add(reformIndexForSegment);
+                        if (reformIndexForSegment >= 0)
+                        {
+                            indexes.Add(reformIndexForSegment);
+                        }
                     }
                 }
             }
 
-            InterpolateMissingIndexes(indexes);
             foreach (var ndx in indexes)
             {
                 platformSystem.SetReformType(ndx, 1);
                 platformSystem.SetReformColor(ndx, 2);
             }
+        }
+
+        private static float[] GetTropicLatitudes(PlatformSystem platformSystem)
+        {
+            var lastLen = 0;
+            var result = new List<float>();
+            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
+            for (var lat = -89.9f; lat < 90; lat += coordLineOffset)
+            {
+                var position = LatLonToPosition(lat, 0, platformSystem.planet.radius);
+                position.Normalize();
+
+                double latitude = Mathf.Asin(position.y);
+                var latitudeIndex = (float)(latitude / 6.28318548202515) * platformSystem.segment;
+                var longitudeSegmentCount = PlatformSystem.DetermineLongitudeSegmentCount(Mathf.FloorToInt(Mathf.Abs(latitudeIndex)), platformSystem.segment);
+                if (lastLen != longitudeSegmentCount)
+                {
+                    logger.LogDebug($"at lat = {lat} length is {longitudeSegmentCount}, previous len was {lastLen}");
+                    result.Add(lat);
+                }
+
+                lastLen = longitudeSegmentCount;
+            }
+
+            return result.ToArray();
         }
 
         public static float GetCoordLineOffset(PlanetData planet, float baseRate = 0.25f)

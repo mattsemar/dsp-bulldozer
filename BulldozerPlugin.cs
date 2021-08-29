@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using BepInEx;
 using BepInEx.Logging;
@@ -17,7 +17,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.14";
+        public const string PluginVersion = "1.0.15";
 
         public static ManualLogSource logger;
 
@@ -167,9 +167,10 @@ namespace Bulldozer
                 });
                 ctr++;
             }
+
             if (ctr > 0)
                 UIRealtimeTip.Popup($"Found {ctr} build ghosts");
-            else 
+            else
                 logger.LogDebug($"no ghosts found");
         }
 
@@ -435,38 +436,40 @@ namespace Bulldozer
             _flattenRequested = value;
         }
 
-        [HarmonyPostfix, HarmonyPatch(typeof(GameScenarioLogic),  "NotifyOnUnlockTech")]
+        [HarmonyPostfix, HarmonyPatch(typeof(GameScenarioLogic), "NotifyOnUnlockTech")]
         public static void GameScenarioLogic_NotifyOnUnlockTech_Postfix(int techId)
         {
             if (instance._ui == null || instance._ui.TechUnlockedState)
             {
                 return;
             }
+
             TechProto techProto = LDB.techs.Select(techId);
-            
+
             if (techProto.Level == 3 && techProto.Name.Contains("宇宙探索"))
             {
                 instance._ui.TechUnlockedState = true;
             }
+
             logger.LogDebug($"tech proto not matched {JsonUtility.ToJson(techProto)}");
         }
 
-        [HarmonyPrefix, HarmonyPatch(typeof(Player),  "ThrowTrash")]
+        [HarmonyPrefix, HarmonyPatch(typeof(Player), "ThrowTrash")]
         public static bool Player_ThrowTrash_Prefix()
         {
             if (instance == null || instance._ui == null || BulldozerWork.Count == 0)
             {
                 return true;
             }
-        
+
             if (PluginConfig.deleteFactoryTrash.Value)
             {
                 return false;
             }
-        
+
             return true;
         }
-        
+
         [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), "OnCategoryButtonClick")]
         public static void UIBuildMenu_OnCategoryButtonClick_Postfix(UIBuildMenu __instance)
         {
@@ -535,6 +538,7 @@ namespace Bulldozer
                         {
                             popupMessage += $"\nDelete all littered factory items (existing litter should not be affected)";
                         }
+
                         if (PluginConfig.flattenWithFactoryTearDown.Value)
                         {
                             popupMessage += $"\nAdd foundation to all locations on planet";
@@ -550,10 +554,15 @@ namespace Bulldozer
 
                         if (PluginConfig.addGuideLines.Value)
                         {
-                            var markingTypes = PluginConfig.addGuideLinesEquator.Value ? " equator " : "";
+                            var markingTypes = PluginConfig.addGuideLinesEquator.Value ? "equator" : "";
                             if (PluginConfig.addGuideLinesMeridian.Value)
                             {
-                                markingTypes += "meridians";
+                                markingTypes += " meridians";
+                            }
+
+                            if (PluginConfig.addGuideLinesTropic.Value)
+                            {
+                                markingTypes += " tropics";
                             }
 
                             popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
@@ -617,10 +626,3 @@ namespace Bulldozer
         }
     }
 }
-
-
-
-
-
-
-

@@ -11,23 +11,33 @@ Now supports destruction of factory machines. Use DeleteFactoryTrash config prop
 
 ## How to install
 
-This mod requires BepInEx to function, download and install it first: [link](https://bepinex.github.io/bepinex_docs/master/articles/user_guide/installation/index.html?tabs=tabid-win)
+This mod requires BepInEx to function, download and install it
+first: [link](https://bepinex.github.io/bepinex_docs/master/articles/user_guide/installation/index.html?tabs=tabid-win)
 
 #### Manually
+
 Extract the archive file and drag `Bulldozer.dll` into the `BepInEx/plugins` directory.
 
 #### Mod manager
+
 Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.15
+
+Fixed tropic painting for non-default radius planets
+
 #### v1.0.14
+
 Add option to automatically delete items that would have been littered
 
 #### v1.0.13
+
 Add Universe Exploration 3 as a prerequisite, fix issue with meridian line being too thin at pole. Add tropic line painting
 
 #### v1.0.12
+
 Fix issue where checkbox wasn't being hidden
 
 #### v1.0.11
