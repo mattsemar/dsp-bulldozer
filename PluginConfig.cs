@@ -30,13 +30,28 @@ namespace Bulldozer
         Clear,
     }
 
+    public enum OperationMode
+    {
+        [Description("Full cheat mode, resource not consumed")]
+        FullCheat,
+
+        [Description("Consume available resource and continue")]
+        HalfCheat,
+
+        [Description("Consume available resources, halt when empty")]
+        Honest
+    }
+
     public class PluginConfig
     {
         public static ConfigEntry<int> workItemsPerFrame;
+        public static ConfigEntry<OperationMode> soilPileConsumption;
+        public static ConfigEntry<OperationMode> foundationConsumption;
 
-        // make the checkbox values persistent
+        // used to make UI checkbox values persistent
         public static ConfigEntry<bool> addGuideLines;
-        public static ConfigEntry<bool> repaveAll;
+        public static ConfigEntry<bool> alterVeinState;
+        public static ConfigEntry<bool> destroyFactoryAssemblers;
 
         public static ConfigEntry<bool> addGuideLinesEquator;
         public static ConfigEntry<bool> addGuideLinesMeridian;
@@ -45,40 +60,59 @@ namespace Bulldozer
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
 
-        // dangerous, don't enable unless you are certain
-        public static ConfigEntry<bool> destroyFactoryAssemblers;
         public static ConfigEntry<bool> deleteFactoryTrash;
-        
+        public static ConfigEntry<bool> disableTechRequirement;
+
         // enable normal action of plugin when destroyAssemblers is enabled
         public static ConfigEntry<bool> flattenWithFactoryTearDown;
 
 
         public static void InitConfig(ConfigFile configFile)
         {
+            alterVeinState = configFile.Bind("UIOnly", "AlterVeinState", false,
+                "Don't edit, use UI checkbox. By default, veins will not be lowered or raised. Enabling takes much longer");
+            destroyFactoryAssemblers = configFile.Bind("UIOnly", "DestroyFactoryAssemblers", false,
+                "Don't edit, use UI checkbox. Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process. ");
+            addGuideLines = configFile.Bind("UIOnly", "AddGuideLines", true,
+                "Don't edit, this property backs the checkbox in the UI. If enabled painted lines at certain points on planet will be added");
+
             workItemsPerFrame = configFile.Bind("Performance", "WorkItemsPerFrame", 1,
                 "Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
                 "Larger values might make the job complete more quickly, but will also slow your system down noticeably");
 
-            addGuideLines = configFile.Bind("Paint", "AddGuideLines", true,
-                "If enabled painted lines at certain points on planet will be added");
-            repaveAll = configFile.Bind("Paint", "RepaveAll", true,
-                "If disabled only unpaved sections will be repaved. If disabled veins won't be explicitly impacted");
-            buryVeinMode = configFile.Bind("Paint", "BuryVeinMode", BuryVeinMode.Tool);
-            foundationDecorationMode = configFile.Bind("Paint", "FoundationDecorationMode", FoundationDecorationMode.Tool);
+            soilPileConsumption = configFile.Bind("Cheatiness", "SoilPileConsumption", OperationMode.FullCheat,
+                "Controls whether bulldozing consumes and or requires available soil pile");
+            foundationConsumption = configFile.Bind("Cheatiness", "FoundationConsumption", OperationMode.FullCheat,
+                "Controls whether bulldozing consumes and or requires available foundation pile");
+            disableTechRequirement = configFile.Bind("Cheatiness", "DisableTechRequirement", false,
+                "Controls whether you actually have to meet tech requirement");
 
-            addGuideLinesEquator = configFile.Bind("Paint", "AddGuideLinesEquator", true,
+            buryVeinMode = configFile.Bind("Veins", "BuryVeinMode", BuryVeinMode.Tool, "No impact if AlterVeinState is false");
+
+            addGuideLinesEquator = configFile.Bind("Decoration", "AddGuideLinesEquator", true,
                 "Allows disabling of the equator guideline individually. No effect if AddGuideLines is disabled");
-            addGuideLinesMeridian = configFile.Bind("Paint", "AddGuideLinesMeridian", true,
+            addGuideLinesMeridian = configFile.Bind("Decoration", "AddGuideLinesMeridian", true,
                 "Allows disabling of the meridian guidelines individually. No effect if AddGuideLines is disabled");
-            addGuideLinesTropic = configFile.Bind("Paint", "AddGuideLinesTropic", false,
+            addGuideLinesTropic = configFile.Bind("Decoration", "AddGuideLinesTropic", false,
                 "Allows disabling of the tropic guidelines individually. No effect if AddGuideLines is disabled. Currently bugged with larger radius planets");
+            foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool);
 
-            destroyFactoryAssemblers = configFile.Bind("Destruction", "DestroyFactoryAssemblers", false,
-                "DANGEROUS - Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process. ");
             deleteFactoryTrash = configFile.Bind("Destruction", "DeleteFactoryTrash", false,
                 "Erase all items littered while destroying factory items");
             flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
-                "Use this only to enable adding foundation when destroying existing factory");
+                "Use this to enable adding foundation when destroying existing factory");
+        }
+
+        public static string GetCurrentVeinsRaiseState()
+        {
+            var reformTool = GameMain.mainPlayer?.controller.actionBuild.reformTool;
+            if (reformTool == null)
+            {
+                return "UNKNOWN";
+            }
+
+            var bury = buryVeinMode.Value == BuryVeinMode.Tool ? reformTool.buryVeins : buryVeinMode.Value == BuryVeinMode.Bury;
+            return bury ? "bury" : "restore";
         }
     }
 }

@@ -8,42 +8,45 @@ namespace Bulldozer
 {
     public class UIElements : MonoBehaviour
     {
+        private const string DEFAULT_TIP_MESSAGE_PT1 =
+            "Adds foundation to entire planet. Any existing foundation decoration will be lost.\n";
+
+        private const string DEFAULT_TIP_MESSAGE_VEINS_NO_ALTER = "Veins will not be raised or lowered";
+
+        private const string DEFAULT_TIP_MESSAGE_DESTROY_FACTORY =
+            "Destroy all factory machines.\nGame may lag a bit after invocation. Press again to halt.";
+
         public static ManualLogSource logger;
+        private static List<GameObject> gameObjectsToDestroy = new List<GameObject>();
 
         public GameObject DrawEquatorCheck;
-
-        // use to track whether checkbox needs to be synced
-        private bool _drawEquatorField = true;
-        private bool _repaveField = true;
-        private bool _destroyFactoryMachines = false;
-        [NonSerialized] public Image CheckBoxImage;
-        [NonSerialized] public Image RepaveCheckBoxImage;
-        [NonSerialized] public Image DestroyMachinesCheckBoxImage;
         public Sprite spriteChecked;
         public Sprite spriteUnChecked;
-        private GameObject _newSeparator;
-        private static List<GameObject> gameObjectsToDestroy = new List<GameObject>();
 
         public UIButton PaveActionButton;
         public RectTransform BulldozeButton;
         public Text countText;
         public Text buttonHotkeyTextComponent;
         public Transform CountTransform;
-        private Image _iconImage;
-        private Transform _bulldozeIcon;
         public CheckboxControl drawEquatorCheckboxButton;
+        private bool _alterVeinsField = false;
+        private Transform _bulldozeIcon;
+        private bool _destroyFactoryMachines = false;
+
+        // use to track whether checkbox needs to be synced
+        private bool _drawEquatorField = true;
+        private Image _iconImage;
+        private GameObject _newSeparator;
+
+        private bool _techUnlocked = false;
+        [NonSerialized] public Image AlterVeinsCheckBoxImage;
+        [NonSerialized] public Image CheckBoxImage;
+
+        private bool currentTipMessageIsDefault = true;
+        [NonSerialized] public Image DestroyMachinesCheckBoxImage;
         private Text hover;
         private UIButton mainActionButton;
 
-        private const string DEFAULT_TIP_MESSAGE =
-            "Adds foundation to entire planet. Any existing foundation colors will be lost.\nCurrently selected options for burying veins and foundation type will be used.\nGame may lag a bit after invocation. Press again to halt.";
-
-        private const string DEFAULT_TIP_MESSAGE_DESTROY_FACTORY =
-            "Destroy all factory machines.\nGame may lag a bit after invocation. Press again to halt.";
-
-        private bool currentTipMessageIsDefault = true;
-        
-        private bool _techUnlocked = false;
         public bool TechUnlockedState
         {
             get => _techUnlocked;
@@ -58,9 +61,60 @@ namespace Bulldozer
                 else
                 {
                     mainActionButton.button.interactable = true;
-                    mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE;
+                    mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 }
             }
+        }
+
+        public void Update()
+        {
+            if (_drawEquatorField != PluginConfig.addGuideLines.Value)
+            {
+                // value might have been updated in config manager plugin ui
+                CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
+                _drawEquatorField = PluginConfig.addGuideLines.Value;
+            }
+
+            if (_alterVeinsField != PluginConfig.alterVeinState.Value)
+            {
+                // sync checkbox with externally changed value
+                AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
+                _alterVeinsField = PluginConfig.alterVeinState.Value;
+            }
+
+            if (_destroyFactoryMachines != PluginConfig.destroyFactoryAssemblers.Value)
+            {
+                // sync checkbox with externally changed value
+                DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
+                _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
+            }
+
+            if (!_techUnlocked && PluginConfig.disableTechRequirement.Value)
+            {
+                TechUnlockedState = true;
+            }
+
+            if (_destroyFactoryMachines)
+            {
+                if (mainActionButton != null && currentTipMessageIsDefault)
+                {
+                    currentTipMessageIsDefault = false;
+                    mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY;
+                }
+            }
+            else if (mainActionButton != null && !currentTipMessageIsDefault)
+            {
+                currentTipMessageIsDefault = true;
+                mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
+            }
+        }
+
+        private string ConstructTipMessageDependentOnConfig()
+        {
+            var veinsAlterMessage = $"Will attempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins for planet.";
+            var part2 = PluginConfig.alterVeinState.Value ? veinsAlterMessage : DEFAULT_TIP_MESSAGE_VEINS_NO_ALTER;
+            currentTipMessageIsDefault = !PluginConfig.alterVeinState.Value;
+            return DEFAULT_TIP_MESSAGE_PT1 + part2;
         }
 
 
@@ -69,7 +123,7 @@ namespace Bulldozer
             InitOnOffSprites();
             InitActionButton(button1, action);
             InitDrawEquatorCheckbox(environmentModificationContainer, button1);
-            InitRepaveCheckbox(environmentModificationContainer);
+            InitAlterVeinsCheckbox(environmentModificationContainer);
             InitDestroyMachinesCheckbox(environmentModificationContainer);
         }
 
@@ -148,7 +202,7 @@ namespace Bulldozer
             }
         }
 
-        private void InitRepaveCheckbox(RectTransform environmentModificationContainer)
+        private void InitAlterVeinsCheckbox(RectTransform environmentModificationContainer)
         {
             var repaveCheck = new GameObject("Repave");
             gameObjectsToDestroy.Add(repaveCheck);
@@ -161,7 +215,7 @@ namespace Bulldozer
             rect.pivot = new Vector2(0, 0.5f);
             rect.anchoredPosition = new Vector2(350, -105);
             var repaveCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
-            repaveCheckboxButton.HoverText = "Uncheck to skip paving already paved areas. If unchecked veins will not be repaved";
+            repaveCheckboxButton.HoverText = "Check to attempt to raise or lower all veins (slow). If unchecked veins will be ignored";
 
             if (countText != null)
             {
@@ -178,17 +232,16 @@ namespace Bulldozer
 
             gameObjectsToDestroy.Add(repaveCheckboxButton.gameObject);
 
-            RepaveCheckBoxImage = repaveCheckboxButton.gameObject.AddComponent<Image>();
-            RepaveCheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
-            gameObjectsToDestroy.Add(RepaveCheckBoxImage.gameObject);
+            AlterVeinsCheckBoxImage = repaveCheckboxButton.gameObject.AddComponent<Image>();
+            AlterVeinsCheckBoxImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
+            gameObjectsToDestroy.Add(AlterVeinsCheckBoxImage.gameObject);
 
-            RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
+            AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
             repaveCheckboxButton.onClick += data =>
             {
-                // RepaveField = !RepaveField;
-                PluginConfig.repaveAll.Value = !PluginConfig.repaveAll.Value;
-                RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
-                _repaveField = PluginConfig.repaveAll.Value;
+                PluginConfig.alterVeinState.Value = !PluginConfig.alterVeinState.Value;
+                AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
+                _alterVeinsField = PluginConfig.alterVeinState.Value;
             };
         }
 
@@ -233,44 +286,6 @@ namespace Bulldozer
                 DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
                 _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
             };
-        }
-
-        public void Update()
-        {
-            if (_drawEquatorField != PluginConfig.addGuideLines.Value)
-            {
-                // value might have been updated in config manager plugin ui
-                CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
-                _drawEquatorField = PluginConfig.addGuideLines.Value;
-            }
-
-            if (_repaveField != PluginConfig.repaveAll.Value)
-            {
-                // sync checkbox with externally changed value
-                RepaveCheckBoxImage.sprite = PluginConfig.repaveAll.Value ? spriteChecked : spriteUnChecked;
-                _repaveField = PluginConfig.repaveAll.Value;
-            }
-
-            if (_destroyFactoryMachines != PluginConfig.destroyFactoryAssemblers.Value)
-            {
-                // sync checkbox with externally changed value
-                DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
-                _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
-            }
-
-            if (_destroyFactoryMachines)
-            {
-                if (mainActionButton != null && currentTipMessageIsDefault)
-                {
-                    currentTipMessageIsDefault = false;
-                    mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY;
-                }
-            }
-            else if (mainActionButton != null && !currentTipMessageIsDefault)
-            {
-                currentTipMessageIsDefault = true;
-                mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE;
-            }
         }
 
         public void Unload()
@@ -329,8 +344,10 @@ namespace Bulldozer
             {
                 originalRectTransform.GetComponentInChildren<UIButton>();
                 mainActionButton.tips.tipTitle = "Bulldoze";
-                mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE;
+                mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 mainActionButton.tips.offset = new Vector2(mainActionButton.tips.offset.x, mainActionButton.tips.offset.y + 100);
+                mainActionButton.button.onClick.RemoveAllListeners();
+
                 mainActionButton.onClick += action;
             }
 
@@ -355,8 +372,11 @@ namespace Bulldozer
             BulldozeButton.gameObject.SetActive(true);
             PaveActionButton.gameObject.SetActive(true);
             CheckBoxImage.gameObject.SetActive(true);
-            if (RepaveCheckBoxImage.gameObject != null)
-                RepaveCheckBoxImage.gameObject.SetActive(true);
+            if (AlterVeinsCheckBoxImage.gameObject != null)
+            {
+                AlterVeinsCheckBoxImage.gameObject.SetActive(true);
+            }
+
             if (DestroyMachinesCheckBoxImage.gameObject != null)
                 DestroyMachinesCheckBoxImage.gameObject.SetActive(true);
         }
@@ -366,7 +386,7 @@ namespace Bulldozer
             BulldozeButton.gameObject.SetActive(false);
             PaveActionButton.gameObject.SetActive(false);
             CheckBoxImage.gameObject.SetActive(false);
-            RepaveCheckBoxImage.gameObject.SetActive(false);
+            AlterVeinsCheckBoxImage.gameObject.SetActive(false);
             DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
         }
     }

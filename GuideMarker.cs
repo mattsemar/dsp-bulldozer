@@ -256,5 +256,30 @@ namespace Bulldozer
             var y = (float)Math.Sin(latRad);
             return new Vector3(x, y, z).normalized * earthRadius;
         }
+
+        public static (int foundation, int soilPile) CountNeededResources(PlatformSystem platformSystem)
+        {
+            platformSystem.EnsureReformData();
+            var platformSystemPlanet = platformSystem?.planet;
+            if (platformSystemPlanet == null)
+            {
+                logger.LogWarning($"null platform system passed in");
+                return (int.MaxValue, int.MaxValue);
+            }
+
+            var soilPileNeeded = 0;
+            for (var index = 0; index < platformSystemPlanet.modData.Length << 1; ++index)
+            {
+                soilPileNeeded += 3 - platformSystem.planet.data.GetModLevel(index);
+            }
+
+            var foundationNeeded = 0;
+            for (var index = 0; index < platformSystem.maxReformCount; ++index)
+            {
+                foundationNeeded += platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
+            }
+
+            return (foundationNeeded, soilPileNeeded);
+        }
     }
 }

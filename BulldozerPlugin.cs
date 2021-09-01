@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using BepInEx;
 using BepInEx.Logging;
 using HarmonyLib;
@@ -17,18 +18,19 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.15";
+        public const string PluginVersion = "1.0.17";
 
         public static ManualLogSource logger;
 
         private static readonly List<ClearFactoryWorkItem> BulldozerWork = new List<ClearFactoryWorkItem>();
-        private static readonly List<PaveWorkItem> FlattenWorkList = new List<PaveWorkItem>();
+        private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
 
         private static ItemDestructionPhase previousPhase = ItemDestructionPhase.Done;
 
         private static Stopwatch clearStopWatch;
 
         public static BulldozerPlugin instance;
+        private static int reformConsumed;
         private bool _flattenRequested;
         private Harmony _harmony;
 
@@ -51,7 +53,7 @@ namespace Bulldozer
             DoBulldozeUpdate();
             DoPaveUpdate();
             if (_ui != null && _ui.countText != null)
-                _ui.countText.text = $"{FlattenWorkList.Count + BulldozerWork.Count}";
+                _ui.countText.text = $"{RaiseVeinsWorkList.Count + BulldozerWork.Count}";
         }
 
 
@@ -59,7 +61,7 @@ namespace Bulldozer
         {
             // For ScriptEngine hot-reloading
             BulldozerWork?.Clear();
-            FlattenWorkList?.Clear();
+            RaiseVeinsWorkList?.Clear();
             if (_ui != null)
             {
                 _ui.Unload();
@@ -71,7 +73,7 @@ namespace Bulldozer
 
         private void ClearFactory()
         {
-            UIRealtimeTip.Popup("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
+            LogAndPopupMessage("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
 
             clearStopWatch = new Stopwatch();
             clearStopWatch.Start();
@@ -169,9 +171,14 @@ namespace Bulldozer
             }
 
             if (ctr > 0)
-                UIRealtimeTip.Popup($"Found {ctr} build ghosts");
+                LogAndPopupMessage($"Found {ctr} build ghosts");
             else
                 logger.LogDebug($"no ghosts found");
+        }
+
+        private int CountBuildGhosts(PlanetFactory currentPlanetFactory)
+        {
+            return currentPlanetFactory.prebuildPool.Count(prebuildData => prebuildData.id >= 1);
         }
 
         public static bool RemoveBuild(Player player, PlanetFactory factory, int objId)
@@ -200,13 +207,13 @@ namespace Bulldozer
 
         private void DoPaveUpdate()
         {
-            if (FlattenWorkList.Count > 0)
+            if (RaiseVeinsWorkList.Count > 0)
             {
-                var countDown = Math.Min(Math.Min(FlattenWorkList.Count, PluginConfig.workItemsPerFrame.Value), 10);
+                var countDown = Math.Min(Math.Min(RaiseVeinsWorkList.Count, PluginConfig.workItemsPerFrame.Value), 10);
                 while (countDown-- > 0)
                 {
-                    var flattenTask = FlattenWorkList[0];
-                    FlattenWorkList.RemoveAt(0);
+                    var flattenTask = RaiseVeinsWorkList[0];
+                    RaiseVeinsWorkList.RemoveAt(0);
 
                     var point = flattenTask.Position;
                     var planetFactory = flattenTask.Factory;
@@ -221,9 +228,14 @@ namespace Bulldozer
 
                     try
                     {
-                        planetFactory.FlattenTerrain(point, Quaternion.identity,
+                        var soilPileDebit = planetFactory.FlattenTerrain(point, Quaternion.identity,
                             new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: bury,
                             lift: true);
+                        if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
+                        {
+                            GameMain.mainPlayer.SetSandCount(Math.Min(0, soilPileDebit + GameMain.mainPlayer.sandCount));
+                        }
+
                         planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, bury);
                     }
                     catch (Exception e)
@@ -231,65 +243,101 @@ namespace Bulldozer
                         logger.LogWarning($"exception while paving {e.Message} {e.StackTrace}");
                     }
 
-                    if (FlattenWorkList.Count == 0) planetFactory.planet.landPercentDirty = true;
+                    if (RaiseVeinsWorkList.Count == 0)
+                    {
+                        planetFactory.planet.landPercentDirty = true;
+                    }
                 }
 
-                if (FlattenWorkList.Count % 100 == 0)
+                if (RaiseVeinsWorkList.Count % 100 == 0)
                 {
-                    logger.LogDebug($"flattened point, {FlattenWorkList.Count} remain");
+                    logger.LogDebug($"flattened point, {RaiseVeinsWorkList.Count} remain");
                 }
             }
             else if (_flattenRequested)
             {
                 logger.LogDebug($"repaint requested");
                 SetFlattenRequestedFlag(false);
-                // ReSharper disable once InconsistentNaming
-                var maxReformCount = GameMain.mainPlayer?.factory?.platformSystem.maxReformCount;
-                var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
-                var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
-                if (maxReformCount == null || platformSystem == null || actionBuild == null) return;
-                // reform brush type of 7 is foundation with no decoration
-                // brush type 2 is decorated, but not painted
-                // 1 seems to be paint mode
-                int brushType = 1;
-                switch (PluginConfig.foundationDecorationMode.Value)
+                try
                 {
-                    case FoundationDecorationMode.Tool:
-                        brushType = actionBuild.reformTool.brushType;
+                    PaintPlanet();
+                    LogAndPopupMessage("Bulldozer done adding foundation");
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning($"exception painting {e}");
+                    LogAndPopupMessage($"Failure while painting. Check logs");
+                }
+            }
+        }
+
+        private void PaintPlanet()
+        {
+            var maxReformCount = GameMain.mainPlayer?.factory?.platformSystem.maxReformCount;
+            var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
+            var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
+            if (maxReformCount == null || platformSystem == null || actionBuild == null)
+            {
+                return;
+            }
+
+            // reform brush type of 7 is foundation with no decoration
+            // brush type 2 is decorated, but not painted
+            // 1 seems to be paint mode
+            var brushType = 1;
+            switch (PluginConfig.foundationDecorationMode.Value)
+            {
+                case FoundationDecorationMode.Tool:
+                    brushType = actionBuild.reformTool.brushType;
+                    break;
+                case FoundationDecorationMode.Paint:
+                    brushType = 1;
+                    break;
+                case FoundationDecorationMode.Decorate:
+                    brushType = 2;
+                    break;
+                case FoundationDecorationMode.Clear:
+                    brushType = 7;
+                    break;
+                default:
+                    logger.LogWarning($"unexpected brush type requested {PluginConfig.foundationDecorationMode.Value}");
+                    break;
+            }
+
+            var consumedFoundation = 0;
+            var foundationUsedUp = false;
+            for (var index = 0; index < maxReformCount; ++index)
+            {
+                var foundationNeeded = platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
+                consumedFoundation += foundationNeeded;
+                if (foundationNeeded > 0 && PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
+                {
+                    var reformId = PlatformSystem.REFORM_ID;
+                    var count = foundationNeeded;
+                    GameMain.mainPlayer.package.TakeTailItems(ref reformId, ref count);
+                    if (count == 0 && PluginConfig.foundationConsumption.Value != OperationMode.HalfCheat)
+                    {
+                        LogAndPopupMessage($"Out of foundation to place");
+                        foundationUsedUp = true;
                         break;
-                    case FoundationDecorationMode.Paint:
-                        brushType = 1;
-                        break;
-                    case FoundationDecorationMode.Decorate:
-                        brushType = 2;
-                        break;
-                    case FoundationDecorationMode.Clear:
-                        brushType = 7;
-                        break;
-                    default:
-                        logger.LogWarning($"unexpected brush type requested {PluginConfig.foundationDecorationMode.Value}");
-                        break;
+                    }
+
+                    if (count == 0)
+                    {
+                        LogAndPopupMessage($"Out of foundation, you owe us");
+                    }
                 }
 
-                for (var index = 0; index < maxReformCount; ++index)
-                    try
-                    {
-                        var reformToolBrushColor = actionBuild.reformTool.brushColor;
-                        platformSystem.SetReformType(index, brushType);
-                        platformSystem.SetReformColor(index, reformToolBrushColor);
-                    }
-                    catch (Exception e)
-                    {
-                        logger.LogWarning($"exception while applying coat of paint {e.Message}");
-                        logger.LogWarning(e.StackTrace);
-                    }
+                platformSystem.SetReformType(index, brushType);
+                platformSystem.SetReformColor(index, actionBuild.reformTool.brushColor);
+            }
 
-                if (PluginConfig.addGuideLines.Value)
-                {
-                    PaintGuideMarkings(platformSystem);
-                }
+            reformConsumed += consumedFoundation;
+            LogAndPopupMessage($"Task used {consumedFoundation} foundation {reformConsumed}");
 
-                UIRealtimeTip.Popup("Bulldozer done adding foundation");
+            if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
+            {
+                PaintGuideMarkings(platformSystem);
             }
         }
 
@@ -327,7 +375,7 @@ namespace Bulldozer
                         BulldozerWork.RemoveAt(0);
                         if (bulldozeTask.Phase != previousPhase)
                         {
-                            UIRealtimeTip.Popup($"Starting phase {bulldozeTask.Phase} {bulldozeTask.ItemId}");
+                            LogAndPopupMessage($"Starting phase {bulldozeTask.Phase} {bulldozeTask.ItemId}");
                             logger.LogDebug(
                                 $"next phase started {Enum.GetName(typeof(ItemDestructionPhase), bulldozeTask.Phase)}");
                             previousPhase = bulldozeTask.Phase;
@@ -341,13 +389,108 @@ namespace Bulldozer
                 clearStopWatch.Stop();
                 var elapsedMs = clearStopWatch.ElapsedMilliseconds;
                 logger.LogInfo($"bulldozer {elapsedMs} ms to complete");
-                UIRealtimeTip.Popup("Bulldozer done destroying factory");
+                LogAndPopupMessage("Bulldozer done destroying factory");
             }
         }
 
         private void InvokePavePlanet()
         {
-            UIRealtimeTip.Popup("Adding foundation");
+            InvokePavePlanetNoBury();
+            if (PluginConfig.alterVeinState.Value)
+            {
+                InvokePaveWithVeinAlteration();
+            }
+        }
+
+        private void InvokePavePlanetNoBury()
+        {
+            var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
+            var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
+            var factory = GameMain.localPlanet.factory;
+            if (actionBuild == null || platformSystem == null || factory == null)
+            {
+                LogAndPopupMessage("invalid state");
+                return;
+            }
+
+            if (GameMain.localPlanet == null || GameMain.localPlanet.type == EPlanetType.Gas)
+            {
+                LogAndPopupMessage($"Only regular planets can be paved");
+                return;
+            }
+
+            for (var id = 0; id < factory.vegePool.Length; ++id)
+            {
+                factory.RemoveVegeWithComponents(id);
+            }
+
+            GameMain.gpuiManager.SyncAllGPUBuffer();
+
+            var soilPileNeeded = 0;
+            var messageLogged = false;
+            var outOfSoilPile = false;
+            for (var index = 0; index < GameMain.localPlanet.modData.Length << 1; ++index)
+            {
+                soilPileNeeded += 3 - factory.planet.data.GetModLevel(index);
+
+                GameMain.localPlanet.AddHeightMapModLevel(index, 3);
+                if (soilPileNeeded > GameMain.mainPlayer.sandCount && !messageLogged)
+                {
+                    logger.LogWarning($"running a deficit on soil pile. need {soilPileNeeded} have {GameMain.mainPlayer.sandCount}");
+                    messageLogged = true;
+                    if (PluginConfig.soilPileConsumption.Value == OperationMode.Honest)
+                    {
+                        LogAndPopupMessage($"out of soilpile");
+                        outOfSoilPile = true;
+                        break;
+                    }
+                }
+            }
+
+            if (soilPileNeeded > 0 && PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
+            {
+                GameMain.mainPlayer.SetSandCount(Math.Max(GameMain.mainPlayer.sandCount - soilPileNeeded, 0));
+            }
+
+            if (GameMain.localPlanet.UpdateDirtyMeshes())
+            {
+                GameMain.localPlanet.factory.RenderLocalPlanetHeightmap();
+            }
+
+            if (soilPileNeeded > 0)
+            {
+                factory.planet.landPercentDirty = true;
+            }
+
+            if (!outOfSoilPile)
+            {
+                LogAndPopupMessage("Adding foundation");
+
+                platformSystem.EnsureReformData();
+                PaintPlanet();
+                if (PluginConfig.addGuideLines.Value)
+                {
+                    PaintGuideMarkings(platformSystem);
+                }
+            }
+            else
+            {
+                LogAndPopupMessage($"not adding foundation failed to level everything");
+            }
+
+            LogAndPopupMessage("Bulldozer done adding foundation");
+        }
+
+        private void LogAndPopupMessage(string message)
+        {
+            UIRealtimeTip.Popup(message);
+            logger.LogDebug($"Popped up message {message}");
+        }
+
+        // This version is much slower but will pretty reliable raise or lower all veins
+        private void InvokePaveWithVeinAlteration()
+        {
+            LogAndPopupMessage("Altering veins");
             var mainPlayer = GameMain.mainPlayer;
             var mainPlayerFactory = mainPlayer.factory;
             if (mainPlayerFactory == null) return;
@@ -355,11 +498,7 @@ namespace Bulldozer
             var platformSystem = mainPlayerFactory.platformSystem;
             if (platformSystem == null) return;
 
-            if (platformSystem.reformData == null)
-            {
-                platformSystem.EnsureReformData();
-            }
-
+            platformSystem.EnsureReformData();
             if (platformSystem.reformData == null)
             {
                 logger.LogWarning($"no reform data skipping pave");
@@ -367,57 +506,24 @@ namespace Bulldozer
             }
 
             var planet = mainPlayerFactory.planet;
-            FlattenWorkList.Clear();
+            RaiseVeinsWorkList.Clear();
             var tmpFlattenWorkList = new List<PaveWorkItem>();
-            platformSystem.EnsureReformData();
-            var adjustedOffset = (int)GuideMarker.GetCoordLineOffset(planet, 9);
-            if (adjustedOffset != 9)
-            {
-                logger.LogDebug($"using coord offset of {adjustedOffset} due to planet size == {planet.radius}");
-            }
 
-            for (var lat = -89; lat < 90; lat += adjustedOffset)
+            foreach (var vein in planet.factory.veinPool)
             {
-                for (var lon = -179; lon < 180; lon += adjustedOffset)
+                var positions = BuildPositionsToRaiseVeins(vein.pos);
+                foreach (var position in positions)
                 {
-                    var position = GuideMarker.LatLonToPosition(lat, lon, planet.radius);
-
-                    var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
-                    if (reformIndexForPosition >= platformSystem.reformData.Length)
-                    {
-                        logger.LogWarning($"reformIndex = {reformIndexForPosition} is out of bounds, apparently");
-                        continue;
-                    }
-
-                    if (!platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)) || PluginConfig.repaveAll.Value)
-                    {
-                        tmpFlattenWorkList.Add(
-                            new PaveWorkItem
-                            {
-                                Position = position,
-                                Player = mainPlayer,
-                                Factory = mainPlayerFactory
-                            });
-                    }
+                    tmpFlattenWorkList.Add(
+                        new PaveWorkItem
+                        {
+                            Position = position,
+                            Player = mainPlayer,
+                            Factory = mainPlayerFactory
+                        });
                 }
             }
 
-            if (PluginConfig.repaveAll.Value)
-            {
-                foreach (var vein in planet.factory.veinPool)
-                {
-                    if (vein.id > 0)
-                    {
-                        tmpFlattenWorkList.Add(
-                            new PaveWorkItem
-                            {
-                                Position = vein.pos,
-                                Player = mainPlayer,
-                                Factory = mainPlayerFactory
-                            });
-                    }
-                }
-            }
 
             tmpFlattenWorkList.Sort((item1, item2) =>
             {
@@ -426,8 +532,26 @@ namespace Bulldozer
                 return distance1.CompareTo(distance2);
             });
 
-            FlattenWorkList.AddRange(tmpFlattenWorkList);
+            RaiseVeinsWorkList.AddRange(tmpFlattenWorkList);
             SetFlattenRequestedFlag(true);
+        }
+
+        private Vector3[] BuildPositionsToRaiseVeins(Vector3 centerPosition)
+        {
+            var quaternion = Maths.SphericalRotation(centerPosition, 22.5f);
+            var radius = 0.991f * 10f;
+            return new[]
+            {
+                centerPosition,
+                centerPosition + quaternion * (new Vector3(0.0f, 0.0f, 1.414f) * radius),
+                centerPosition + quaternion * (new Vector3(0.0f, 0.0f, -1.414f) * radius),
+                centerPosition + quaternion * (new Vector3(1.414f, 0.0f, 0.0f) * radius),
+                centerPosition + quaternion * (new Vector3(-1.414f, 0.0f, 0.0f) * radius),
+                centerPosition + quaternion * (new Vector3(1f, 0.0f, 1f) * radius),
+                centerPosition + quaternion * (new Vector3(-1f, 0.0f, -1f) * radius),
+                centerPosition + quaternion * (new Vector3(1f, 0.0f, -1f) * radius),
+                centerPosition + quaternion * (new Vector3(-1f, 0.0f, 1f) * radius)
+            };
         }
 
         private void SetFlattenRequestedFlag(bool value)
@@ -496,7 +620,7 @@ namespace Bulldozer
             }
             else
             {
-                instance._ui.TechUnlockedState = instance.CheckResearchedTech();
+                instance._ui.TechUnlockedState = instance.CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
                 instance._ui.Show();
             }
         }
@@ -515,67 +639,124 @@ namespace Bulldozer
 
             _ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
             {
-                StartCoroutine(InvokeAction(-1, () =>
+                StartCoroutine(InvokeAction(1, () =>
                 {
                     GameMain.mainPlayer.SetHandItems(0, 0);
                     GameMain.mainPlayer.controller.actionBuild.reformTool._Close();
                 }));
 
-                if (FlattenWorkList.Count > 0 || BulldozerWork.Count > 0)
+                if (RaiseVeinsWorkList.Count > 0 || BulldozerWork.Count > 0)
                 {
-                    FlattenWorkList.Clear();
+                    RaiseVeinsWorkList.Clear();
                     BulldozerWork.Clear();
-                    UIRealtimeTip.Popup("Stopping...");
-                    _ui.countText.text = $"{FlattenWorkList.Count}";
+                    LogAndPopupMessage("Stopping...");
+                    _ui.countText.text = $"{RaiseVeinsWorkList.Count}";
                 }
                 else
                 {
-                    var popupMessage = $"This action can take a bit to complete. Please confirm that you would like to do the following: ";
-                    if (PluginConfig.destroyFactoryAssemblers.Value)
-                    {
-                        popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
-                        if (PluginConfig.deleteFactoryTrash.Value)
-                        {
-                            popupMessage += $"\nDelete all littered factory items (existing litter should not be affected)";
-                        }
-
-                        if (PluginConfig.flattenWithFactoryTearDown.Value)
-                        {
-                            popupMessage += $"\nAdd foundation to all locations on planet";
-                        }
-                    }
-                    else
-                    {
-                        popupMessage += $"\nAdd foundation to all locations on planet";
-                        if (PluginConfig.repaveAll.Value)
-                        {
-                            popupMessage += "\nRepave already paved areas";
-                        }
-
-                        if (PluginConfig.addGuideLines.Value)
-                        {
-                            var markingTypes = PluginConfig.addGuideLinesEquator.Value ? "equator" : "";
-                            if (PluginConfig.addGuideLinesMeridian.Value)
-                            {
-                                markingTypes += " meridians";
-                            }
-
-                            if (PluginConfig.addGuideLinesTropic.Value)
-                            {
-                                markingTypes += " tropics";
-                            }
-
-                            popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
-                        }
-                    }
-
-
+                    var popupMessage = ConstructPopupMessage(GameMain.localPlanet);
                     UIMessageBox.Show("Bulldoze planet", popupMessage.Translate(),
-                        "Ok", "Cancel", 0, InvokePluginCommands, () => { UIRealtimeTip.Popup($"Canceled"); });
+                        "Ok", "Cancel", 0, InvokePluginCommands, () => { LogAndPopupMessage($"Canceled"); });
                 }
             });
 
-            _ui.TechUnlockedState = CheckResearchedTech();
+            _ui.TechUnlockedState = CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
+        }
+
+        private string ConstructPopupMessage(PlanetData localPlanet)
+        {
+            if (localPlanet == null)
+            {
+                return "No local planet to bulldoze found.";
+            }
+
+            var popupMessage = $"Please confirm that you would like to do the following: ";
+            if (PluginConfig.destroyFactoryAssemblers.Value)
+            {
+                popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
+                var countBuildGhosts = CountBuildGhosts(GameMain.mainPlayer.factory);
+                if (countBuildGhosts > 0)
+                {
+                    popupMessage += $". Including {countBuildGhosts} not yet built machines";
+                }
+
+                if (PluginConfig.deleteFactoryTrash.Value)
+                {
+                    popupMessage += $"\nDelete all littered factory items (existing litter should not be affected)";
+                }
+
+
+                if (PluginConfig.flattenWithFactoryTearDown.Value)
+                {
+                    popupMessage += $"\nAdd foundation to all locations on planet";
+                }
+            }
+            else
+            {
+                popupMessage += $"\nAdd foundation to all locations on planet";
+                if (PluginConfig.alterVeinState.Value)
+                {
+                    popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins (slow)".Translate();
+                    popupMessage += "\nThis action can take a bit to complete (uncheck raise/lower veins option to finish instantly).".Translate();
+                }
+
+                if (PluginConfig.addGuideLines.Value)
+                {
+                    var markingTypes = PluginConfig.addGuideLinesEquator.Value ? "equator" : "";
+                    if (PluginConfig.addGuideLinesMeridian.Value)
+                    {
+                        markingTypes += " meridians";
+                    }
+
+                    if (PluginConfig.addGuideLinesTropic.Value)
+                    {
+                        markingTypes += " tropics";
+                    }
+
+                    popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
+                }
+
+                if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat || PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
+                {
+                    var (foundation, soilPile) = GuideMarker.CountNeededResources(GameMain.localPlanet.factory.platformSystem);
+                    if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
+                    {
+                        popupMessage += $"\nConsume {soilPile} soil pile.";
+                        if (soilPile > GameMain.mainPlayer.sandCount)
+                        {
+                            if (PluginConfig.soilPileConsumption.Value == OperationMode.Honest)
+                            {
+                                popupMessage +=
+                                    $". Be aware that this process will halt after your {GameMain.mainPlayer.sandCount} soil pile is used up. \n(Config options allow for bypassing this)";
+                            }
+                            else
+                            {
+                                popupMessage += $". All of your soil pile will be consumed but the process will continue. \n(See config to bypass)";
+                            }
+                        }
+                    }
+
+                    if (PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
+                    {
+                        popupMessage += $"\nConsume {foundation} foundation";
+                        var playerFoundation = GameMain.mainPlayer.package.GetItemCount(PlatformSystem.REFORM_ID);
+                        if (foundation > playerFoundation)
+                        {
+                            if (PluginConfig.foundationConsumption.Value == OperationMode.Honest)
+                            {
+                                popupMessage +=
+                                    $". Be aware that this process will halt after your {playerFoundation} foundation is used up. \n(Config options allow for bypassing this)";
+                            }
+                            else
+                            {
+                                popupMessage += $". All of your foundation will be consumed but the process will continue. \n(See config to bypass)";
+                            }
+                        }
+                    }
+                }
+            }
+
+            return popupMessage;
         }
 
         private bool CheckResearchedTech()
@@ -602,26 +783,42 @@ namespace Bulldozer
         {
             logger.LogDebug("pre yield");
             if (delay > 0)
-                yield return new WaitForSeconds(2);
+            {
+                yield return new WaitForSeconds(delay);
+            }
+            else if (delay == -2)
+            {
+                yield return new WaitForFixedUpdate();
+            }
             else
+            {
                 yield return new WaitForEndOfFrame();
+            }
+
             logger.LogDebug("Performing action");
             action();
         }
 
         private void InvokePluginCommands()
         {
-            if (PluginConfig.destroyFactoryAssemblers.Value)
+            try
             {
-                ClearFactory();
-                if (PluginConfig.flattenWithFactoryTearDown.Value)
+                if (PluginConfig.destroyFactoryAssemblers.Value)
+                {
+                    ClearFactory();
+                    if (PluginConfig.flattenWithFactoryTearDown.Value)
+                    {
+                        InvokePavePlanet();
+                    }
+                }
+                else
                 {
                     InvokePavePlanet();
                 }
             }
-            else
+            catch (Exception e)
             {
-                InvokePavePlanet();
+                logger.LogWarning($"InvokePlugin failed {e}");
             }
         }
     }

@@ -24,6 +24,14 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.17
+
+Fix issue with config property being out of sync with UI
+
+#### v1.0.16
+
+Speed up operation when veins don't need to be altered
+
 #### v1.0.15
 
 Fixed tropic painting for non-default radius planets
