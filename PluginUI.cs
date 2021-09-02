@@ -41,6 +41,7 @@ namespace Bulldozer
         private bool _techUnlocked = false;
         [NonSerialized] public Image AlterVeinsCheckBoxImage;
         [NonSerialized] public Image CheckBoxImage;
+        [NonSerialized] public Image ConfigIconImage;
 
         private bool currentTipMessageIsDefault = true;
         [NonSerialized] public Image DestroyMachinesCheckBoxImage;
@@ -125,6 +126,7 @@ namespace Bulldozer
             InitDrawEquatorCheckbox(environmentModificationContainer, button1);
             InitAlterVeinsCheckbox(environmentModificationContainer);
             InitDestroyMachinesCheckbox(environmentModificationContainer);
+            InitConfigButton(environmentModificationContainer);
         }
 
         private void InitActionButton(GameObject button1, Action<int> action)
@@ -158,7 +160,7 @@ namespace Bulldozer
             rect.pivot = new Vector2(0, 0.5f);
             rect.anchoredPosition = new Vector2(350, -90);
             drawEquatorCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
-            drawEquatorCheckboxButton.HoverText = "Add a green line around equator and blue lines at meridian points";
+            drawEquatorCheckboxButton.HoverText = "Add painted guidelines at various locations (equator, tropics, meridians configurable)";
             drawEquatorCheckboxButton.onClick += data =>
             {
                 PluginConfig.addGuideLines.Value = !PluginConfig.addGuideLines.Value;
@@ -288,6 +290,46 @@ namespace Bulldozer
             };
         }
 
+        private void InitConfigButton(RectTransform environmentModificationContainer)
+        {
+            var configBtn = new GameObject("Config");
+            gameObjectsToDestroy.Add(configBtn);
+            var rect = configBtn.AddComponent<RectTransform>();
+            rect.SetParent(environmentModificationContainer.transform, false);
+
+            rect.anchorMax = new Vector2(0, 1);
+            rect.anchorMin = new Vector2(0, 1);
+            rect.sizeDelta = new Vector2(20, 20);
+            rect.pivot = new Vector2(0, 0.5f);
+            rect.anchoredPosition = new Vector2(375, -120);
+            var invokeConfig = rect.gameObject.AddComponent<CheckboxControl>();
+            invokeConfig.HoverText = "Open config";
+
+            if (countText != null)
+            {
+                var configHover = Instantiate(countText, environmentModificationContainer.transform, true);
+                gameObjectsToDestroy.Add(configHover.gameObject);
+                var copiedRectTransform = configHover.GetComponent<RectTransform>();
+                var parentRect = environmentModificationContainer.GetComponent<RectTransform>();
+                copiedRectTransform.anchorMin = new Vector2(0, 1);
+                copiedRectTransform.anchorMax = new Vector2(0, 1);
+                copiedRectTransform.sizeDelta = new Vector2(800, 20);
+                copiedRectTransform.anchoredPosition = new Vector2(400, parentRect.transform.position.y - 115);
+                invokeConfig.textObject = configHover;
+            }
+
+            gameObjectsToDestroy.Add(invokeConfig.gameObject);
+
+            ConfigIconImage = invokeConfig.gameObject.AddComponent<Image>();
+            ConfigIconImage.color = new Color(0.8f, 0.8f, 0.8f, 1);
+            gameObjectsToDestroy.Add(ConfigIconImage.gameObject);
+            var configImgGameObject = GameObject.Find("UI Root/Overlay Canvas/In Game/Game Menu/button-3-bg/button-3/icon");
+
+            ConfigIconImage.sprite = configImgGameObject.GetComponent<Image>().sprite;
+            invokeConfig.onClick += data => { PluginConfigWindow.visible = !PluginConfigWindow.visible; };
+        }
+
+
         public void Unload()
         {
             try
@@ -379,6 +421,7 @@ namespace Bulldozer
 
             if (DestroyMachinesCheckBoxImage.gameObject != null)
                 DestroyMachinesCheckBoxImage.gameObject.SetActive(true);
+            ConfigIconImage.gameObject.SetActive(true);
         }
 
         public void Hide()
@@ -388,6 +431,7 @@ namespace Bulldozer
             CheckBoxImage.gameObject.SetActive(false);
             AlterVeinsCheckBoxImage.gameObject.SetActive(false);
             DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
+            ConfigIconImage.gameObject.SetActive(false);
         }
     }
 

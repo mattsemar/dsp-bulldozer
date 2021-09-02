@@ -35,6 +35,11 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.18
+
+* Added config window (thanks runeranger for very helpful feedback)
+* Improved predicated soil pile usage calculation
+
 #### v1.0.17
 
 Fix issue with config property being out of sync with UI

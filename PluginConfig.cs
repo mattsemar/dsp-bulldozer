@@ -1,32 +1,33 @@
-﻿using System.ComponentModel;
+﻿using System.Collections;
+using System.ComponentModel;
 using BepInEx.Configuration;
 
 namespace Bulldozer
 {
     public enum BuryVeinMode
     {
-        [Description("Use the same mode as the game's foundation tool")]
+        [Description("Use game setting for raise/lower. Note that the raise/lower checkbox must be enabled for this to have an impact")]
         Tool,
 
-        [Description("Always bury veins, ignore tool setting")]
+        [Description("Always bury veins, ignoring game setting. Note that the raise/lower checkbox must be enabled for this to have an impact")]
         Bury,
 
-        [Description("Explicitly (try to) raise veins, ignore tool setting. Note that repave must be enabled and that some veins will be missed when raising buried ones")]
+        [Description("Always raise veins, ignoring game setting. Note that the raise/lower checkbox must be enabled for this to have an impact")]
         Raise
     }
 
     public enum FoundationDecorationMode
     {
-        [Description("Use the same mode as the game's tool")]
+        [Description("Use game setting for brushType (whatever selected in game is what will be used)")]
         Tool,
 
-        [Description("Add painted foundation (brushType: 1)")]
+        [Description("Ignore game setting, always use painted foundation (brushType: 1)")]
         Paint,
 
-        [Description("Add decorated, but not painted foundation (brushType: 2)")]
+        [Description("Ignore game setting, always use painted foundation (brushType: 2)")]
         Decorate,
 
-        [Description("Reset height but add foundation with no decoration or paint (brushType: 7)")]
+        [Description("Ignore game setting, always use 'no decoration' mode (brushType: 7)")]
         Clear,
     }
 
@@ -66,41 +67,50 @@ namespace Bulldozer
         // enable normal action of plugin when destroyAssemblers is enabled
         public static ConfigEntry<bool> flattenWithFactoryTearDown;
 
+        public static ConfigFile PluginConfigFile;
+
 
         public static void InitConfig(ConfigFile configFile)
         {
-            alterVeinState = configFile.Bind("UIOnly", "AlterVeinState", false,
-                "Don't edit, use UI checkbox. By default, veins will not be lowered or raised. Enabling takes much longer");
-            destroyFactoryAssemblers = configFile.Bind("UIOnly", "DestroyFactoryAssemblers", false,
-                "Don't edit, use UI checkbox. Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process. ");
-            addGuideLines = configFile.Bind("UIOnly", "AddGuideLines", true,
-                "Don't edit, this property backs the checkbox in the UI. If enabled painted lines at certain points on planet will be added");
+            PluginConfigFile = configFile;
+
 
             workItemsPerFrame = configFile.Bind("Performance", "WorkItemsPerFrame", 1,
-                "Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
-                "Larger values might make the job complete more quickly, but will also slow your system down noticeably");
+                new ConfigDescription("Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
+                                      "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
+                    new AcceptableValueRange<int>(1, 5), "configEditOnly"));
 
             soilPileConsumption = configFile.Bind("Cheatiness", "SoilPileConsumption", OperationMode.FullCheat,
                 "Controls whether bulldozing consumes and or requires available soil pile");
             foundationConsumption = configFile.Bind("Cheatiness", "FoundationConsumption", OperationMode.FullCheat,
                 "Controls whether bulldozing consumes and or requires available foundation pile");
             disableTechRequirement = configFile.Bind("Cheatiness", "DisableTechRequirement", false,
-                "Controls whether you actually have to meet tech requirement");
+                "Enable/disable tech requirement for using mod");
 
-            buryVeinMode = configFile.Bind("Veins", "BuryVeinMode", BuryVeinMode.Tool, "No impact if AlterVeinState is false");
+            buryVeinMode = configFile.Bind("Veins", "BuryVeinMode", BuryVeinMode.Tool, "No impact if raise/lower checkbox is not set");
 
             addGuideLinesEquator = configFile.Bind("Decoration", "AddGuideLinesEquator", true,
-                "Allows disabling of the equator guideline individually. No effect if AddGuideLines is disabled");
+                "Enable/disable of the equator guideline individually. No effect if AddGuideLines is disabled");
             addGuideLinesMeridian = configFile.Bind("Decoration", "AddGuideLinesMeridian", true,
-                "Allows disabling of the meridian guidelines individually. No effect if AddGuideLines is disabled");
-            addGuideLinesTropic = configFile.Bind("Decoration", "AddGuideLinesTropic", false,
-                "Allows disabling of the tropic guidelines individually. No effect if AddGuideLines is disabled. Currently bugged with larger radius planets");
-            foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool);
+                "Enable/disable of the meridian guidelines individually. No effect if AddGuideLines is disabled");
+            addGuideLinesTropic = configFile.Bind("Decoration", "AddGuideLinesTropic", true,
+                "Enable/disable of the tropic guidelines individually. No effect if AddGuideLines is disabled. Currently bugged with larger radius planets");
+            foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool,
+                "Change to have a permanent setting instead of tracking the game's current config");
 
             deleteFactoryTrash = configFile.Bind("Destruction", "DeleteFactoryTrash", false,
                 "Erase all items littered while destroying factory items");
             flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
-                "Use this to enable adding foundation when destroying existing factory");
+                "Use this to enable adding foundation while destroying existing factory");
+
+            alterVeinState = configFile.Bind("UIOnly", "AlterVeinState", false,
+                new ConfigDescription("Don't edit, use UI checkbox. By default, veins will not be lowered or raised. Enabling takes much longer",
+                    null, "uiEditOnly"));
+
+            destroyFactoryAssemblers = configFile.Bind("UIOnly", "DestroyFactoryAssemblers", false,
+                $"Don't edit, use UI checkbox. Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process.");
+            addGuideLines = configFile.Bind("UIOnly", "AddGuideLines", true,
+                "Don't edit, this property backs the checkbox in the UI. If enabled painted lines at certain points on planet will be added");
         }
 
         public static string GetCurrentVeinsRaiseState()
@@ -113,6 +123,26 @@ namespace Bulldozer
 
             var bury = buryVeinMode.Value == BuryVeinMode.Tool ? reformTool.buryVeins : buryVeinMode.Value == BuryVeinMode.Bury;
             return bury ? "bury" : "restore";
+        }
+
+        public static void ResetConfigWindowOptionsToDefault()
+        {
+            foreach (var configDefinition in PluginConfigFile.Keys)
+            {
+                // edit config to tweak performance config settings 
+                if (configDefinition.Section == "UIOnly")
+                {
+                    continue;
+                }
+
+                var configEntry = PluginConfigFile[configDefinition];
+                if (((IList)configEntry.Description.Tags).Contains("configEditOnly"))
+                {
+                    continue;
+                }
+
+                configEntry.BoxedValue = configEntry.DefaultValue;
+            }
         }
     }
 }
