@@ -1,22 +1,24 @@
 ﻿## Bulldozer
 
-Flatten an entire planet. Levels and adds foundation to each spot. Supports using foundation & soil pile from player's inventory (see 'Cheatiness' config properties). Completes a full planet in seconds   
+Flatten an entire planet. Adds foundation to each location in seconds.
+
+Coming soon, support for non-cheaty mode where foundation & soil pile from player's inventory are used (see 'Cheatiness' config properties).
 
 Checkbox next to the action button controls whether guide lines will be added. Config controls types painted (equator, meridian, tropic)
 
-Raising/lowering veins is now a separate operation that takes around a minute to complete. It can be enabled using the checkbox under the guide lines control 
+Raising/lowering veins is now a separate operation that takes around a minute to complete. It can be enabled using the checkbox under the guide lines control
 
 Now supports destruction of factory machines. Use DeleteFactoryTrash config property to automatically delete items that would be littered
 
-
-![UI](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example1.png?raw=true)
 Example of a planet with all veins lowered
 
-![UI](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example2.png?raw=true)
-Check the "Environment Modification" menu to find the action button
+![Example1](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example1.png?raw=true)
 
-![UI](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example3.png?raw=true)
+Check the "Environment Modification" menu to find the action button
+![Example2](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example2.png?raw=true)
+
 Non-cheaty options are not quite complete. For now, foundation is deducted properly but soil pile is consumed at too high a rate.
+![Example3](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example3.png?raw=true)
 
 ## How to install
 
@@ -70,7 +72,7 @@ Make hidden feature execution independent of foundation adding
 #### v1.0.8
 * Added support for BepInEx Configuration
 * Add config option for overriding raise/bury veins, defaults to using same settings as game ui
-* Add config option for overriding foundation decoration style, default is to follow game ui setting 
+* Add config option for overriding foundation decoration style, default is to follow game ui setting
 * Add config option to enable skipping equator or meridian painting (individually)
 * Add config option for number of update actions executed on each frame
 * Added better support for larger radius planets
@@ -88,7 +90,7 @@ Handle exception in vegetation removal
 
 #### v1.0.4
 Fixed issue where action button icon was showing in other categories
-More points added to try and catch missed veins in raise/lower on subsequent executions 
+More points added to try and catch missed veins in raise/lower on subsequent executions
 
 #### v1.0.3
 Fixed issue where action was not invoked on button press
