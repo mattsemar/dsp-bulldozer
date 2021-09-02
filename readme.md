@@ -1,13 +1,22 @@
 ﻿## Bulldozer
 
-Flatten an entire planet. Levels and adds foundation to each spot. Uses the current settings for burying veins and foundation color.
-Takes about a minute to complete (depends on how much of planet is already flattened).
+Flatten an entire planet. Levels and adds foundation to each spot. Supports using foundation & soil pile from player's inventory (see 'Cheatiness' config properties). Completes a full planet in seconds   
 
-Checkbox next to the action button controls whether guide lines will be added. Config controls types (equator, meridian, tropic)
+Checkbox next to the action button controls whether guide lines will be added. Config controls types painted (equator, meridian, tropic)
 
-Note: some veins may not be raised (or lowered) on subsequent invocations.
+Raising/lowering veins is now a separate operation that takes around a minute to complete. It can be enabled using the checkbox under the guide lines control 
 
 Now supports destruction of factory machines. Use DeleteFactoryTrash config property to automatically delete items that would be littered
+
+
+![UI](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example1.png?raw=true)
+Example of a planet with all veins lowered
+
+![UI](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example2.png?raw=true)
+Check the "Environment Modification" menu to find the action button
+
+![UI](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example3.png?raw=true)
+Non-cheaty options are not quite complete. For now, foundation is deducted properly but soil pile is consumed at too high a rate.
 
 ## How to install
 
