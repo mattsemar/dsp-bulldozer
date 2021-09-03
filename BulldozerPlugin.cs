@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using BepInEx;
 using HarmonyLib;
 using UnityEngine;
@@ -20,15 +19,13 @@ namespace Bulldozer
         public const string PluginName = "Bulldozer";
         public const string PluginVersion = "1.0.18";
 
-        private static readonly List<ClearFactoryWorkItem> BulldozerWork = new List<ClearFactoryWorkItem>();
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
         private static int _soilToDeduct = 0;
-
-        private static ItemDestructionPhase previousPhase = ItemDestructionPhase.Done;
 
         private static Stopwatch clearStopWatch;
 
         public static BulldozerPlugin instance;
+        private WreckingBall _factoryTeardownTask;
         private bool _flattenRequested;
         private Harmony _harmony;
 
@@ -42,23 +39,25 @@ namespace Bulldozer
             instance = this;
             _harmony = new Harmony(PluginGuid);
             _harmony.PatchAll(typeof(BulldozerPlugin));
+            _harmony.PatchAll(typeof(WreckingBall));
+            _harmony.PatchAll(typeof(PluginConfigWindow));
             PluginConfig.InitConfig(Config);
             Debug.Log("Bulldozer Plugin Loaded");
         }
 
         private void Update()
         {
-            DoBulldozeUpdate();
+            WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
             DoPaveUpdate();
             if (_ui != null && _ui.countText != null)
-                _ui.countText.text = $"{RaiseVeinsWorkList.Count + BulldozerWork.Count}";
+                _ui.countText.text = $"{RaiseVeinsWorkList.Count + WreckingBall.RemainingTaskCount()}";
         }
 
 
         private void OnDestroy()
         {
             // For ScriptEngine hot-reloading
-            BulldozerWork?.Clear();
+            WreckingBall.Stop();
             RaiseVeinsWorkList?.Clear();
             if (_ui != null)
             {
@@ -75,140 +74,6 @@ namespace Bulldozer
             if (PluginConfigWindow.visible)
             {
                 PluginConfigWindow.OnGUI();
-            }
-        }
-
-        private void ClearFactory()
-        {
-            LogAndPopupMessage("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
-
-            clearStopWatch = new Stopwatch();
-            clearStopWatch.Start();
-            var phase = ItemDestructionPhase.Inserters;
-            var currentPlanetFactory = GameMain.mainPlayer.planetData?.factory;
-            if (currentPlanetFactory == null)
-            {
-                Logger.LogDebug($"no current factory found");
-                return;
-            }
-
-            var countsByPhase = new Dictionary<ItemDestructionPhase, int>();
-
-            var scheduledItemIds = new HashSet<int>();
-            var itemIdsToProcess = new List<int>();
-            for (var i = 1; i < currentPlanetFactory.entityCursor; i++)
-                if (currentPlanetFactory.entityPool[i].protoId > 0)
-                    itemIdsToProcess.Add(i);
-
-            var mainPlayerPosition = GameMain.mainPlayer.position;
-            itemIdsToProcess.Sort((item1, item2) =>
-            {
-                var pos1 = currentPlanetFactory.entityPool[item1].pos;
-                var pos2 = currentPlanetFactory.entityPool[item2].pos;
-                return Vector3.Distance(mainPlayerPosition, pos1).CompareTo(Vector3.Distance(mainPlayerPosition, pos2));
-            });
-
-            while (phase < ItemDestructionPhase.Done)
-            {
-                foreach (var itemId in itemIdsToProcess)
-                    if (currentPlanetFactory.entityPool[itemId].protoId > 0)
-                    {
-                        if (scheduledItemIds.Contains(itemId)) continue;
-
-                        var itemMatchesPhase = false;
-                        switch (phase)
-                        {
-                            case ItemDestructionPhase.Inserters:
-                                itemMatchesPhase = currentPlanetFactory.entityPool[itemId].inserterId > 0;
-                                break;
-                            case ItemDestructionPhase.Assemblers:
-                                itemMatchesPhase = currentPlanetFactory.entityPool[itemId].assemblerId > 0;
-                                break;
-                            case ItemDestructionPhase.Belts:
-                                itemMatchesPhase = currentPlanetFactory.entityPool[itemId].beltId > 0;
-                                break;
-                            case ItemDestructionPhase.Stations:
-                                itemMatchesPhase = currentPlanetFactory.entityPool[itemId].stationId > 0;
-                                break;
-                            case ItemDestructionPhase.Other:
-                                itemMatchesPhase = true;
-                                break;
-                        }
-
-                        if (itemMatchesPhase)
-                        {
-                            if (!countsByPhase.ContainsKey(phase)) countsByPhase[phase] = 0;
-
-                            countsByPhase[phase]++;
-                            scheduledItemIds.Add(itemId);
-                            BulldozerWork.Add(
-                                new ClearFactoryWorkItem
-                                {
-                                    Phase = phase,
-                                    Player = GameMain.mainPlayer,
-                                    ItemId = itemId,
-                                    PlanetFactory = currentPlanetFactory
-                                });
-                        }
-                    }
-
-                phase++;
-            }
-
-            AddTasksForBluePrintGhosts(currentPlanetFactory);
-
-            Logger.LogDebug($"added {BulldozerWork.Count} items to delete {countsByPhase}");
-        }
-
-        private void AddTasksForBluePrintGhosts(PlanetFactory currentPlanetFactory)
-        {
-            int ctr = 0;
-            foreach (var prebuildData in currentPlanetFactory.prebuildPool)
-            {
-                if (prebuildData.id < 1)
-                    continue;
-                BulldozerWork.Add(new ClearFactoryWorkItem
-                {
-                    Phase = ItemDestructionPhase.Other,
-                    Player = GameMain.mainPlayer,
-                    ItemId = -prebuildData.id,
-                    PlanetFactory = currentPlanetFactory
-                });
-                ctr++;
-            }
-
-            if (ctr > 0)
-                LogAndPopupMessage($"Found {ctr} build ghosts");
-            else
-                Logger.LogDebug($"no ghosts found");
-        }
-
-        private int CountBuildGhosts(PlanetFactory currentPlanetFactory)
-        {
-            return currentPlanetFactory.prebuildPool.Count(prebuildData => prebuildData.id >= 1);
-        }
-
-        public static bool RemoveBuild(Player player, PlanetFactory factory, int objId)
-        {
-            try
-            {
-                var num = -objId;
-
-                ItemProto itemProto = null;
-                if (objId > 0) itemProto = LDB.items.Select(factory.entityPool[objId].protoId);
-
-                if (num > 0) itemProto = LDB.items.Select(factory.prebuildPool[num].protoId);
-
-                var itemId = itemProto == null ? 0 : itemProto.ID;
-                if (itemId > 0) factory.DismantleFinally(player, objId, ref itemId);
-
-                return true;
-            }
-            catch (Exception e)
-            {
-                logger.LogError(e.Message);
-                logger.LogError(e.StackTrace);
-                return false;
             }
         }
 
@@ -365,35 +230,6 @@ namespace Bulldozer
             GuideMarker.AddGuideMarks(platformSystem, guideMarkTypes);
         }
 
-        private void DoBulldozeUpdate()
-        {
-            if (BulldozerWork.Count > 0)
-            {
-                var countDown = PluginConfig.workItemsPerFrame.Value * 10; // takes less time so we can do more per tick
-                while (countDown-- > 0)
-                    if (BulldozerWork.Count > 0)
-                    {
-                        var bulldozeTask = BulldozerWork[0];
-                        BulldozerWork.RemoveAt(0);
-                        if (bulldozeTask.Phase != previousPhase)
-                        {
-                            LogAndPopupMessage($"Starting phase {bulldozeTask.Phase} {bulldozeTask.ItemId}");
-                            Logger.LogDebug(
-                                $"next phase started {Enum.GetName(typeof(ItemDestructionPhase), bulldozeTask.Phase)}");
-                            previousPhase = bulldozeTask.Phase;
-                        }
-
-                        RemoveBuild(bulldozeTask.Player, bulldozeTask.PlanetFactory, bulldozeTask.ItemId);
-                    }
-            }
-            else if (clearStopWatch != null && clearStopWatch.IsRunning)
-            {
-                clearStopWatch.Stop();
-                var elapsedMs = clearStopWatch.ElapsedMilliseconds;
-                Logger.LogInfo($"bulldozer {elapsedMs} ms to complete");
-                LogAndPopupMessage("Bulldozer done destroying factory");
-            }
-        }
 
         private void InvokePavePlanet()
         {
@@ -417,8 +253,8 @@ namespace Bulldozer
 
             if (GameMain.localPlanet == null || GameMain.localPlanet.type == EPlanetType.Gas)
             {
-                // LogAndPopupMessage($"Only regular planets can be paved");
-                // return;
+                LogAndPopupMessage($"Bulldozer doesn't work on gas giants");
+                return;
             }
 
             for (var id = 0; id < factory.vegePool.Length; ++id)
@@ -428,28 +264,16 @@ namespace Bulldozer
 
             GameMain.gpuiManager.SyncAllGPUBuffer();
 
-            var soilPileNeeded = 0;
-            var messageLogged = false;
-            var outOfSoilPile = false;
             for (var index = 0; index < GameMain.localPlanet.modData.Length << 1; ++index)
             {
                 GameMain.localPlanet.AddHeightMapModLevel(index, 3);
-                if (soilPileNeeded > GameMain.mainPlayer.sandCount && !messageLogged)
-                {
-                    Logger.LogWarning($"running a deficit on soil pile. need {soilPileNeeded} have {GameMain.mainPlayer.sandCount}");
-                    messageLogged = true;
-                    if (PluginConfig.soilPileConsumption.Value == OperationMode.Honest)
-                    {
-                        LogAndPopupMessage($"out of soilpile");
-                        outOfSoilPile = true;
-                        break;
-                    }
-                }
             }
 
+            var outOfSoilPile = false;
             if (_soilToDeduct > 0 && PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
             {
                 // currently we don't have an easy way to see how much soil pile that would've been deducted
+                outOfSoilPile = GameMain.mainPlayer.sandCount - _soilToDeduct <= 0;
                 GameMain.mainPlayer.SetSandCount(Math.Max(GameMain.mainPlayer.sandCount - _soilToDeduct, 0));
                 _soilToDeduct = 0;
             }
@@ -459,10 +283,7 @@ namespace Bulldozer
                 GameMain.localPlanet.factory.RenderLocalPlanetHeightmap();
             }
 
-            if (soilPileNeeded > 0)
-            {
-                factory.planet.landPercentDirty = true;
-            }
+            factory.planet.landPercentDirty = true;
 
             if (!outOfSoilPile)
             {
@@ -539,10 +360,6 @@ namespace Bulldozer
             return new[]
             {
                 centerPosition,
-                // centerPosition + quaternion * (new Vector3(0.0f, 0.0f, 1.414f) * radius),
-                // centerPosition + quaternion * (new Vector3(0.0f, 0.0f, -1.414f) * radius),
-                // centerPosition + quaternion * (new Vector3(1.414f, 0.0f, 0.0f) * radius),
-                // centerPosition + quaternion * (new Vector3(-1.414f, 0.0f, 0.0f) * radius),
                 centerPosition + quaternion * (new Vector3(1f, 0.0f, 1f) * radius),
                 centerPosition + quaternion * (new Vector3(-1f, 0.0f, -1f) * radius),
                 centerPosition + quaternion * (new Vector3(1f, 0.0f, -1f) * radius),
@@ -572,22 +389,6 @@ namespace Bulldozer
             }
 
             logger.LogDebug($"tech proto not matched {JsonUtility.ToJson(techProto)}");
-        }
-
-        [HarmonyPrefix, HarmonyPatch(typeof(Player), "ThrowTrash")]
-        public static bool Player_ThrowTrash_Prefix()
-        {
-            if (instance == null || instance._ui == null || BulldozerWork.Count == 0)
-            {
-                return true;
-            }
-
-            if (PluginConfig.deleteFactoryTrash.Value)
-            {
-                return false;
-            }
-
-            return true;
         }
 
         [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), "OnCategoryButtonClick")]
@@ -641,12 +442,12 @@ namespace Bulldozer
                     GameMain.mainPlayer.controller.actionBuild.reformTool._Close();
                 }));
 
-                if (RaiseVeinsWorkList.Count > 0 || BulldozerWork.Count > 0)
+                if (RaiseVeinsWorkList.Count > 0 || WreckingBall.IsRunning())
                 {
                     RaiseVeinsWorkList.Clear();
-                    BulldozerWork.Clear();
+                    WreckingBall.Stop();
                     LogAndPopupMessage("Stopping...");
-                    _ui.countText.text = $"{RaiseVeinsWorkList.Count}";
+                    _ui.countText.text = "0";
                 }
                 else
                 {
@@ -670,7 +471,7 @@ namespace Bulldozer
             if (PluginConfig.destroyFactoryAssemblers.Value)
             {
                 popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
-                var countBuildGhosts = CountBuildGhosts(GameMain.mainPlayer.factory);
+                var countBuildGhosts = WreckingBall.CountBuildGhosts(GameMain.mainPlayer.factory);
                 if (countBuildGhosts > 0)
                 {
                     popupMessage += $". Including {countBuildGhosts} not yet built machines";
@@ -804,7 +605,7 @@ namespace Bulldozer
             {
                 if (PluginConfig.destroyFactoryAssemblers.Value)
                 {
-                    ClearFactory();
+                    WreckingBall.Init(GameMain.mainPlayer.factory, GameMain.mainPlayer);
                     if (PluginConfig.flattenWithFactoryTearDown.Value)
                     {
                         InvokePavePlanet();

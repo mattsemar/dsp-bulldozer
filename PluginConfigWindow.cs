@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
 using BepInEx.Configuration;
+using HarmonyLib;
 using UnityEngine;
 
 namespace Bulldozer
@@ -12,17 +13,19 @@ namespace Bulldozer
         public static bool visible;
         private static Rect _windowRect = new Rect(300f, 250f, 500f, 600f);
 
-        private static int _rightColumnWidth;
         private static int _leftColumnWidth;
-        public static bool NeedReinit = false;
-
+        public static bool NeedReinit;
 
         private static Texture2D _tooltipBg;
-        private static Rect _screenRect;
-        private static Texture2D _windowBg;
 
         private static int _loggedMessageCount = 0;
         private static Dictionary<string, int> previousSelections = new Dictionary<string, int>();
+        private static string _savedGUISkin;
+        private static GUISkin _savedGUISkinObj;
+        private static Color _savedColor;
+        private static Color _savedBackgroundColor;
+        private static Color _savedContentColor;
+        private static GUISkin _mySkin;
 
         public static void OnOpen()
         {
@@ -32,20 +35,65 @@ namespace Bulldozer
         public static void OnClose()
         {
             visible = false;
+            RestoreGuiSkinOptions();
         }
 
         public static void OnGUI()
         {
-            var origSkin = GUI.skin;
-            var origBGColor = GUI.backgroundColor;
-            GUI.backgroundColor = Color.black;
-            // GUI.skin = null;
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                visible = false;
+                return;
+            }
 
             Init();
 
             _windowRect = GUILayout.Window(1297895555, _windowRect, WindowFn, "Bulldozer options");
-            GUI.skin = origSkin;
-            GUI.backgroundColor = origBGColor;
+        }
+
+        private static void SaveCurrentGuiOptions()
+        {
+            _savedBackgroundColor = GUI.backgroundColor;
+            _savedContentColor = GUI.contentColor;
+            _savedColor = GUI.color;
+            GUI.backgroundColor = Color.white;
+            GUI.contentColor = Color.white;
+            GUI.color = Color.white;
+
+
+            if (_mySkin == null || NeedReinit)
+            {
+                _savedGUISkin = JsonUtility.ToJson(GUI.skin);
+                _savedGUISkinObj = GUI.skin;
+                _mySkin = ScriptableObject.CreateInstance<GUISkin>();
+                JsonUtility.FromJsonOverwrite(_savedGUISkin, _mySkin);
+                GUI.skin = _mySkin;
+                GUI.skin.button.normal.textColor = Color.white;
+                GUI.skin.textArea.normal.textColor = Color.white;
+                GUI.skin.textField.normal.textColor = Color.white;
+                GUI.skin.toggle.normal.textColor = Color.white;
+                GUI.skin.toggle.onNormal.textColor = Color.white;
+                GUI.skin.button.normal.textColor = Color.white;
+                GUI.skin.button.onNormal.textColor = Color.white;
+                GUI.skin.button.onActive.textColor = Color.white;
+                GUI.skin.button.active.textColor = Color.white;
+                GUI.skin.label.hover.textColor = Color.white;
+                GUI.skin.label.onNormal.textColor = Color.white;
+                GUI.skin.label.normal.textColor = Color.white;
+            }
+            else
+            {
+                _savedGUISkinObj = GUI.skin;
+                GUI.skin = _mySkin;
+            }
+        }
+
+        private static void RestoreGuiSkinOptions()
+        {
+            GUI.skin = _savedGUISkinObj;
+            GUI.backgroundColor = _savedBackgroundColor;
+            GUI.contentColor = _savedContentColor;
+            GUI.color = _savedColor;
         }
 
         private static void Init()
@@ -56,14 +104,13 @@ namespace Bulldozer
             }
 
             var background = new Texture2D(1, 1, TextureFormat.RGB24, false);
-            background.SetPixel(0, 0, Color.black);
+            background.SetPixel(0, 0, Color.white);
             background.Apply();
             _tooltipBg = background;
-            var windowBackground = new Texture2D(1, 1, TextureFormat.RGB24, false);
-            var color = new Color(0.15f, 0.15f, 0.15f, 0);
-            windowBackground.SetPixel(0, 0, color);
-            windowBackground.Apply();
-            _windowBg = windowBackground;
+            // var windowBackground = new Texture2D(1, 1, TextureFormat.RGB24, false);
+            // var color = new Color(0.15f, 0.15f, 0.15f, 0);
+            // windowBackground.SetPixel(0, 0, color);
+            // windowBackground.Apply();
             InitWindowRect();
             NeedReinit = false;
         }
@@ -71,6 +118,10 @@ namespace Bulldozer
 
         private static void WindowFn(int id)
         {
+            var origBgColor = GUI.backgroundColor;
+            SaveCurrentGuiOptions();
+
+
             GUILayout.BeginArea(new Rect(_windowRect.width - 25f, 0f, 25f, 30f));
             if (GUILayout.Button("X"))
             {
@@ -79,8 +130,6 @@ namespace Bulldozer
             }
 
             GUILayout.EndArea();
-            // GUILayout.BeginHorizontal();
-            // GUILayout.BeginArea(new Rect(_windowRect.x, _windowRect.y + 30f, _windowRect.width, _windowRect.height - 30f), GUISt);
             GUILayout.BeginVertical(GUI.skin.box);
             {
                 DrawCenteredLabel("Hover over labels to see descriptions");
@@ -130,12 +179,10 @@ namespace Bulldozer
                 var height = style.CalcHeight(new GUIContent(GUI.tooltip), _windowRect.width) + 10;
                 var y = (int)(_windowRect.height - height * 1.25);
                 GUI.Box(new Rect(0, y, _windowRect.width, height * 1.25f), GUI.tooltip, style);
-                // GUILayout.EndHorizontal();
             }
-            // GUILayout.EndArea();
-            // GUILayout.EndHorizontal();
 
             GUI.DragWindow();
+            RestoreGuiSkinOptions();
         }
 
         private static void DrawResetAllButton()
@@ -254,16 +301,11 @@ namespace Bulldozer
             }
 
             var boolVal = (bool)setting.BoxedValue;
-            var style = new GUIStyle
-            {
-                normal = new GUIStyleState { textColor = Color.white, background = _tooltipBg },
-                wordWrap = true,
-                alignment = TextAnchor.MiddleCenter
-            };
 
             GUILayout.BeginHorizontal();
             // var result = GUILayout.Toggle(boolVal, new GUIContent(boolVal ? "Enabled" : "Disabled", "Click to toggle"), style ,GUILayout.ExpandWidth(true));
             var result = GUILayout.Toggle(boolVal, boolVal ? "Enabled" : "Disabled");
+            // var result = GUILayout.Toggle(boolVal, boolVal ? "Enabled" : "Disabled", style);
             if (result != boolVal)
             {
                 setting.BoxedValue = result;
@@ -281,10 +323,7 @@ namespace Bulldozer
             var offsetY = Mathf.RoundToInt((Screen.height - height) / 2f);
             _windowRect = new Rect(offsetX, offsetY, width, height);
 
-            _screenRect = new Rect(0, 0, Screen.width, Screen.height);
-
             _leftColumnWidth = Mathf.RoundToInt(_windowRect.width / 2.5f);
-            _rightColumnWidth = (int)_windowRect.width - _leftColumnWidth - 115;
         }
 
         public static void DrawCenteredLabel(string text, params GUILayoutOption[] options)
@@ -294,6 +333,19 @@ namespace Bulldozer
             GUILayout.Label(text);
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
+        }
+
+
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(UIGame), "On_E_Switch")]
+        public static bool UIGame_On_E_Switch_Prefix()
+        {
+            if (visible)
+            {
+                visible = false;
+            }
+
+            return true;
         }
     }
 }

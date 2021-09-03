@@ -46,6 +46,9 @@
     <Reference Include="UnityEngine.ImageConversionModule">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Dyson Sphere Program\DSPGAME_Data\Managed\UnityEngine.ImageConversionModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.IMGUIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Dyson Sphere Program\DSPGAME_Data\Managed\UnityEngine.IMGUIModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.JSONSerializeModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Dyson Sphere Program\DSPGAME_Data\Managed\UnityEngine.JSONSerializeModule.dll</HintPath>
     </Reference>
@@ -76,11 +79,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Libs" />
+    <Folder Include="Examples"/>
+    <Folder Include="Libs"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="META-INF\MANIFEST.MF"/>
+    <None Remove="compile.ps1"/>
+    <None Remove="bulldozer.zip"/>
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="COPY $(TargetPath) &quot;%25ProgramFiles(x86)%25\Steam\steamapps\common\Dyson Sphere Program\BepInEx\scripts&quot;" />
+    <Exec Command="COPY $(TargetPath) &quot;%25ProgramFiles(x86)%25\Steam\steamapps\common\Dyson Sphere Program\BepInEx\scripts&quot;"/>
+    <Exec Command="COPY $(TargetPath) C:\Users\matts\AppData\Roaming\r2modmanPlus-local\DysonSphereProgram\profiles\Default\BepInEx\scripts"/>
   </Target>
 
 </Project>
