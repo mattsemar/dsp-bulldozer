@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.Linq;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -198,6 +199,8 @@ namespace Bulldozer
             GUILayout.EndVertical();
         }
 
+        private static int logcountdown = 2;
+
         private static void DrawSetting(ConfigEntryBase configEntry)
         {
             GUILayout.BeginHorizontal();
@@ -213,6 +216,11 @@ namespace Bulldozer
                 descriptionAdded = DrawBoolField(configEntry);
             }
 
+            if (!descriptionAdded && configEntry.SettingType == typeof(int))
+            {
+                descriptionAdded = DrawRangeField(configEntry);
+            }
+
             if (!descriptionAdded)
             {
                 //something went wrong, default to text field
@@ -220,6 +228,49 @@ namespace Bulldozer
             }
 
             GUILayout.EndHorizontal();
+        }
+
+        private static bool DrawRangeField(ConfigEntryBase configEntry)
+        {
+            if (configEntry.Definition.Key == "MinorMeridianInterval" && logcountdown-- > 0)
+            {
+                Log.logger.LogWarning($"here is type {configEntry.SettingType} {configEntry.SettingType == typeof(Int32)}");
+            }
+
+            if (configEntry.Description.AcceptableValues.GetType() != typeof(AcceptableValueRange<int>))
+                return false;
+
+            GUILayout.BeginHorizontal();
+            AcceptableValueRange<int> acceptableValues = (AcceptableValueRange<int>)configEntry.Description.AcceptableValues;
+            var converted = (float)Convert.ToDouble(configEntry.BoxedValue, CultureInfo.InvariantCulture);
+            var leftValue = (float)Convert.ToDouble(acceptableValues.MinValue, CultureInfo.InvariantCulture);
+            var rightValue = (float)Convert.ToDouble(acceptableValues.MaxValue, CultureInfo.InvariantCulture);
+
+            var result = GUILayout.HorizontalSlider(converted, leftValue, rightValue, GUILayout.MinWidth(200));
+            if (Math.Abs(result - converted) > Mathf.Abs(rightValue - leftValue) / 1000)
+            {
+                var newValue = Convert.ChangeType(result, configEntry.SettingType, CultureInfo.InvariantCulture);
+                configEntry.BoxedValue = newValue;
+            }
+
+            var strVal = configEntry.BoxedValue.ToString();
+            var strResult = GUILayout.TextField(strVal, GUILayout.Width(50));
+            GUILayout.EndHorizontal();
+            if (strResult != strVal)
+            {
+                try
+                {
+                    var resultVal = (float)Convert.ToDouble(strResult, CultureInfo.InvariantCulture);
+                    var clampedResultVal = Mathf.Clamp(resultVal, leftValue, rightValue);
+                    configEntry.BoxedValue = (int)clampedResultVal;
+                }
+                catch (FormatException)
+                {
+                    // Ignore user typing in bad data
+                }
+            }
+
+            return true;
         }
 
         private static void DrawSettingName(ConfigEntryBase setting)

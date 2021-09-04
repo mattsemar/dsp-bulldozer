@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 using static Bulldozer.Log;
 
 namespace Bulldozer
 {
-    internal class SnapArgs
+    public class SnapArgs
     {
         public int[] indices = new int[100];
         public Vector3[] points = new Vector3[100];
@@ -13,14 +14,18 @@ namespace Bulldozer
 
     public class GridExplorer
     {
-        public static int GetNeededSoilPile(BuildTool_Reform reformTool)
+        public delegate void PostComputeReformAction(SnapArgs snapArgs, Vector3 center, float radius, int reformSize, int neededSoilPile, bool timeExpired = false,
+            float lastLat = 0, float lastLon = 0);
+
+
+        public static void IterateReform(BuildTool_Reform reformTool, PostComputeReformAction postComputeFn, int maxExecutionMs, float startLat = -89.9f, float startLon = -179.9f)
         {
             var checkedReformIndices = new HashSet<int>();
             var checkedDataPos = new HashSet<int>();
             var platformSystem = reformTool.planet.factory.platformSystem;
             if (platformSystem.IsAllReformed())
             {
-                return 0;
+                return;
             }
 
             int cursorPointCount;
@@ -28,20 +33,21 @@ namespace Bulldozer
             var neededSoilPile = 0;
             var stopwatch = new Stopwatch();
             stopwatch.Start();
-            for (var lat = -89.9f; lat < 90; lat += 0.25f)
+            for (var lat = startLat; lat < 90; lat += 0.25f)
             {
                 for (var lon = -179.9f; lon < 180; lon += 0.25f)
                 {
                     var position = GuideMarker.LatLonToPosition(lat, 0, reformTool.planet.radius);
                     position.Normalize();
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
+                    if (reformIndexForPosition < 0)
+                        continue;
                     if (checkedReformIndices.Contains(reformIndexForPosition))
                     {
                         continue;
                     }
 
                     checkedReformIndices.Add(reformIndexForPosition);
-
                     if (platformSystem.IsTerrainReformed(platformSystem.GetReformType(reformIndexForPosition)))
                     {
                         continue;
@@ -64,17 +70,20 @@ namespace Bulldozer
                     }
 
                     var flattenTerrainReform = reformTool.factory.ComputeFlattenTerrainReform(snapArgs.points, center, radius, cursorPointCount);
+                    postComputeFn?.Invoke(snapArgs, center, radius, 10, flattenTerrainReform);
+
                     neededSoilPile += flattenTerrainReform;
-                    if (stopwatch.ElapsedMilliseconds > 1000 * 5)
+                    if (stopwatch.ElapsedMilliseconds > maxExecutionMs)
                     {
                         LogAndPopupMessage($"cancel after running ${stopwatch.ElapsedMilliseconds} lat={lat} / lon={lon}");
                         stopwatch.Stop();
+                        // signal that we did not finish this task
+                        if (postComputeFn != null)
+                            postComputeFn(snapArgs, center, radius, 10, 0, true, lat, lon);
                         break;
                     }
                 }
             }
-
-            return neededSoilPile;
         }
 
         public static int GetNeededFoundation(PlatformSystem platformSystem)
@@ -90,6 +99,7 @@ namespace Bulldozer
 
         public static (int foundation, int soilPile) CountNeededResources(PlatformSystem platformSystem)
         {
+            Console.WriteLine($"player current soil pile {GameMain.mainPlayer.sandCount}");
             var platformSystemPlanet = platformSystem?.planet;
             if (platformSystemPlanet == null)
             {
@@ -107,10 +117,20 @@ namespace Bulldozer
 
             if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
             {
-                neededSoil = GetNeededSoilPile(GameMain.mainPlayer.controller.actionBuild.reformTool);
+                _soilNeeded = 0;
+                IterateReform(GameMain.mainPlayer.controller.actionBuild.reformTool, SumReform, 1000 * 5);
+                neededSoil = _soilNeeded;
             }
 
             return (neededFoundation, neededSoil);
+        }
+
+        private static int _soilNeeded = 0;
+
+        public static void SumReform(SnapArgs snapArgs, Vector3 center, float radius, int reformSize, int neededSoilPile, bool timeExpired = false,
+            float lastLat = 0, float lastLon = 0)
+        {
+            _soilNeeded += neededSoilPile;
         }
     }
 }

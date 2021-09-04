@@ -6,6 +6,7 @@ using BepInEx;
 using HarmonyLib;
 using UnityEngine;
 using static Bulldozer.Log;
+using static PlatformSystem;
 using Debug = UnityEngine.Debug;
 using Resources = Bulldozer.Properties.Resources;
 
@@ -17,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.18";
+        public const string PluginVersion = "1.0.19";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
         private static int _soilToDeduct = 0;
@@ -25,7 +26,6 @@ namespace Bulldozer
         private static Stopwatch clearStopWatch;
 
         public static BulldozerPlugin instance;
-        private WreckingBall _factoryTeardownTask;
         private bool _flattenRequested;
         private Harmony _harmony;
 
@@ -48,9 +48,15 @@ namespace Bulldozer
         private void Update()
         {
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
+            var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
+            if (HonestLevelerEndState.ENDED_EARLY == result)
+            {
+                logger.LogInfo($"ran out of soil pile");
+            }
+
             DoPaveUpdate();
             if (_ui != null && _ui.countText != null)
-                _ui.countText.text = $"{RaiseVeinsWorkList.Count + WreckingBall.RemainingTaskCount()}";
+                _ui.countText.text = $"{RaiseVeinsWorkList.Count + WreckingBall.RemainingTaskCount() + HonestLeveler.RemainingTaskCount()}";
         }
 
 
@@ -100,9 +106,6 @@ namespace Bulldozer
 
                     try
                     {
-                        // planetFactory.FlattenTerrain(point, Quaternion.identity,
-                        //     new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: bury,
-                        //     lift: true);
                         planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, bury);
                     }
                     catch (Exception e)
@@ -173,25 +176,30 @@ namespace Bulldozer
 
             var consumedFoundation = 0;
             var foundationUsedUp = false;
+            var outOfFoundationMessageShown = false;
             for (var index = 0; index < maxReformCount; ++index)
             {
                 var foundationNeeded = platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
-                consumedFoundation += foundationNeeded;
                 if (foundationNeeded > 0 && PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
                 {
-                    var reformId = PlatformSystem.REFORM_ID;
-                    var count = foundationNeeded;
-                    GameMain.mainPlayer.package.TakeTailItems(ref reformId, ref count);
-                    if (count == 0 && PluginConfig.foundationConsumption.Value != OperationMode.HalfCheat)
-                    {
-                        LogAndPopupMessage($"Out of foundation to place");
-                        foundationUsedUp = true;
-                        break;
-                    }
+                    consumedFoundation += foundationNeeded;
+                    var reformId = REFORM_ID;
+                    var (itemsRemoved, successful) = StorageSystemManager.RemoveItems(REFORM_ID, foundationNeeded);
 
-                    if (count == 0)
+                    if (!successful)
                     {
-                        LogAndPopupMessage($"Out of foundation, you owe us");
+                        if (PluginConfig.foundationConsumption.Value == OperationMode.Honest)
+                        {
+                            LogAndPopupMessage($"Out of foundation, halting.");
+                            foundationUsedUp = true;
+                            break;
+                        }
+
+                        if (!outOfFoundationMessageShown)
+                        {
+                            outOfFoundationMessageShown = true;
+                            LogAndPopupMessage($"All foundation used, continuing");
+                        }
                     }
                 }
 
@@ -199,8 +207,7 @@ namespace Bulldozer
                 platformSystem.SetReformColor(index, actionBuild.reformTool.brushColor);
             }
 
-            GameMain.mainPlayer.mecha.AddConsumptionStat(PlatformSystem.REFORM_ID, consumedFoundation, GameMain.mainPlayer.nearestFactory);
-            LogAndPopupMessage($"Task used {consumedFoundation}");
+            GameMain.mainPlayer.mecha.AddConsumptionStat(REFORM_ID, consumedFoundation, GameMain.mainPlayer.nearestFactory);
 
             if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
             {
@@ -226,6 +233,15 @@ namespace Bulldozer
             {
                 guideMarkTypes |= GuideMarkTypes.Tropic;
             }
+            if (PluginConfig.addGuideLinesPoles.Value)
+            {
+                guideMarkTypes |= GuideMarkTypes.Pole;
+            }
+
+            if (PluginConfig.minorMeridianInterval.Value > 0)
+            {
+                guideMarkTypes |= GuideMarkTypes.MinorMeridian;
+            }
 
             GuideMarker.AddGuideMarks(platformSystem, guideMarkTypes);
         }
@@ -233,7 +249,16 @@ namespace Bulldozer
 
         private void InvokePavePlanet()
         {
-            InvokePavePlanetNoBury();
+            // if (_soilToDeduct > GameMain.mainPlayer.sandCount || PluginConfig.foundationConsumption.Value == OperationMode.Honest)
+            // {
+            //     // have to use the slower method of iterating each area and using ComputeT
+            //     HonestLeveler.Init(GameMain.mainPlayer.factory, GameMain.mainPlayer);
+            // }
+            // else
+            {
+                InvokePavePlanetNoBury();
+            }
+
             if (PluginConfig.alterVeinState.Value)
             {
                 InvokePaveWithVeinAlteration();
@@ -270,7 +295,7 @@ namespace Bulldozer
             }
 
             var outOfSoilPile = false;
-            if (_soilToDeduct > 0 && PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
+            if (_soilToDeduct != 0 && PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
             {
                 // currently we don't have an easy way to see how much soil pile that would've been deducted
                 outOfSoilPile = GameMain.mainPlayer.sandCount - _soilToDeduct <= 0;
@@ -285,7 +310,7 @@ namespace Bulldozer
 
             factory.planet.landPercentDirty = true;
 
-            if (!outOfSoilPile)
+            if (!outOfSoilPile || PluginConfig.soilPileConsumption.Value != OperationMode.Honest)
             {
                 LogAndPopupMessage("Adding foundation");
 
@@ -442,9 +467,10 @@ namespace Bulldozer
                     GameMain.mainPlayer.controller.actionBuild.reformTool._Close();
                 }));
 
-                if (RaiseVeinsWorkList.Count > 0 || WreckingBall.IsRunning())
+                if (RaiseVeinsWorkList.Count > 0 || WreckingBall.IsRunning() || HonestLeveler.IsRunning())
                 {
                     RaiseVeinsWorkList.Clear();
+                    HonestLeveler.Stop();
                     WreckingBall.Stop();
                     LogAndPopupMessage("Stopping...");
                     _ui.countText.text = "0";
@@ -502,6 +528,8 @@ namespace Bulldozer
                     var markingTypes = PluginConfig.addGuideLinesEquator.Value ? "equator" : "";
                     if (PluginConfig.addGuideLinesMeridian.Value)
                     {
+                        if (PluginConfig.minorMeridianInterval.Value > 0)
+                            markingTypes += " (minor and major)";
                         markingTypes += " meridians";
                     }
 
@@ -515,8 +543,8 @@ namespace Bulldozer
 
                 if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat || PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
                 {
-                    var (foundation, soilPile) = GridExplorer.CountNeededResources(GameMain.localPlanet.factory.platformSystem);
-                    if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
+                    var (foundationNeeded, soilPile) = GridExplorer.CountNeededResources(GameMain.localPlanet.factory.platformSystem);
+                    if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat && soilPile != 0)
                     {
                         var verb = soilPile < 0 ? "Gain" : "Consume";
                         popupMessage += $"\n{verb} {Math.Abs(soilPile)} soil pile. (Current amount:  {GameMain.mainPlayer.sandCount})";
@@ -538,19 +566,15 @@ namespace Bulldozer
 
                     if (PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
                     {
-                        popupMessage += $"\nConsume {foundation} foundation";
-                        var playerFoundation = GameMain.mainPlayer.package.GetItemCount(PlatformSystem.REFORM_ID);
-                        if (foundation > playerFoundation)
+                        popupMessage += $"\nConsume {foundationNeeded} foundation\n";
+                        var (message, allRemoved, remainingToRemove) = StorageSystemManager.BuildRemovalMessage(REFORM_ID, foundationNeeded);
+                        popupMessage += message;
+                        if (!allRemoved)
                         {
-                            if (PluginConfig.foundationConsumption.Value == OperationMode.Honest)
-                            {
-                                popupMessage +=
-                                    $". Be aware that this process will halt after your {playerFoundation} foundation is used up. \n(Config options allow for bypassing this)";
-                            }
+                            if (OperationMode.HalfCheat == PluginConfig.foundationConsumption.Value)
+                                popupMessage += $"\nProcess will continue after all available foundation ({foundationNeeded - remainingToRemove}) is used up.";
                             else
-                            {
-                                popupMessage += $". All of your foundation will be consumed but the process will continue. \n(See config to bypass)";
-                            }
+                                popupMessage += $"\nProcess will halt after all available foundation ({foundationNeeded - remainingToRemove}) is used up.";
                         }
                     }
                 }

@@ -57,6 +57,8 @@ namespace Bulldozer
         public static ConfigEntry<bool> addGuideLinesEquator;
         public static ConfigEntry<bool> addGuideLinesMeridian;
         public static ConfigEntry<bool> addGuideLinesTropic;
+        public static ConfigEntry<bool> addGuideLinesPoles;
+        public static ConfigEntry<int> minorMeridianInterval;
 
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
@@ -78,7 +80,7 @@ namespace Bulldozer
             workItemsPerFrame = configFile.Bind("Performance", "WorkItemsPerFrame", 1,
                 new ConfigDescription("Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
                                       "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
-                    new AcceptableValueRange<int>(1, 5), "configEditOnly"));
+                    new AcceptableValueRange<int>(1, 25), "configEditOnly"));
 
             soilPileConsumption = configFile.Bind("Cheatiness", "SoilPileConsumption", OperationMode.FullCheat,
                 "Controls whether bulldozing consumes and or requires available soil pile");
@@ -94,7 +96,13 @@ namespace Bulldozer
             addGuideLinesMeridian = configFile.Bind("Decoration", "AddGuideLinesMeridian", true,
                 "Enable/disable of the meridian guidelines individually. No effect if AddGuideLines is disabled");
             addGuideLinesTropic = configFile.Bind("Decoration", "AddGuideLinesTropic", true,
-                "Enable/disable of the tropic guidelines individually. No effect if AddGuideLines is disabled. Currently bugged with larger radius planets");
+                "Enable/disable of the tropic guidelines individually. No effect if AddGuideLines is disabled");
+            addGuideLinesPoles = configFile.Bind("Decoration", "AddGuideLinesPoles", false,
+                "Enable/disable painting polar areas. No effect if AddGuideLines is disabled");
+            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0, 
+                new ConfigDescription("Paint meridians starting at 0 and incrementing by this value. E.g., a value of 10 would add a meridian line every 10 degrees 18, 36 total. 0 to disable",
+                new AcceptableValueRange<int>(0, 89), "meridians"));
+
             foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool,
                 "Change to have a permanent setting instead of tracking the game's current config");
 

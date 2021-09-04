@@ -33,10 +33,14 @@ Click the `Install with Mod Manager` link above.
 
 ## Changelog
 
+#### v1.0.19
+
+Added support for minor meridian lines. Set MinorMeridianInterval > 0 in config window to add  
+
 #### v1.0.18
 
-* Added config window (thanks runeranger for very helpful feedback)
-* Improved predicated soil pile usage calculation
+Added config window (thanks runeranger for very helpful feedback)
+Improved predicated soil pile usage calculation
 
 #### v1.0.17
 
@@ -73,12 +77,12 @@ Correct version
 Make hidden feature execution independent of foundation adding
 
 #### v1.0.8
-* Added support for BepInEx Configuration
-* Add config option for overriding raise/bury veins, defaults to using same settings as game ui
-* Add config option for overriding foundation decoration style, default is to follow game ui setting
-* Add config option to enable skipping equator or meridian painting (individually)
-* Add config option for number of update actions executed on each frame
-* Added better support for larger radius planets
+ Added support for BepInEx Configuration
+ Add config option for overriding raise/bury veins, defaults to using same settings as game ui
+ Add config option for overriding foundation decoration style, default is to follow game ui setting
+ Add config option to enable skipping equator or meridian painting (individually)
+ Add config option for number of update actions executed on each frame
+ Added better support for larger radius planets
 
 #### v1.0.7
 Fix issue with hover text position

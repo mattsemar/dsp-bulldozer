@@ -390,7 +390,8 @@ namespace Bulldozer
                 mainActionButton.tips.offset = new Vector2(mainActionButton.tips.offset.x, mainActionButton.tips.offset.y + 100);
                 mainActionButton.button.onClick.RemoveAllListeners();
 
-                mainActionButton.onClick += action;
+                // mainActionButton.onClick += action;
+                mainActionButton.button.onClick.AddListener(delegate { action(1); });
             }
 
             CountTransform = copiedRectTransform.transform.Find("count");

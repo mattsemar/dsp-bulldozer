@@ -12,12 +12,23 @@ namespace Bulldozer
         Equator = 1,
         Meridian = 2,
         Tropic = 4,
-        Segment = 8
+        MinorMeridian = 8,
+        Pole = 16
     }
 
     public class GuideMarker
     {
         public static ManualLogSource logger;
+
+        public static readonly Dictionary<GuideMarkTypes, int> BrushColors = new Dictionary<GuideMarkTypes, int>
+        {
+            [GuideMarkTypes.Equator] = 7, // green on top right of colors (in default section)
+            [GuideMarkTypes.Meridian] = 12, // dark blue
+            [GuideMarkTypes.MinorMeridian] = 3, // orange
+            [GuideMarkTypes.Tropic] = 2, // dark red on top row
+            [GuideMarkTypes.Pole] = 0, // white
+        };
+
         private static readonly float[] TropicLats = { 86f + 11f / 60f, 84.5f, 82.5f, 79.1f, 75.25f, 70.0f + 11.0f / 60f, 64.75f, 55f + 29f / 60f, 46.75f, 28.75f };
 
         public static void AddGuideMarks(PlatformSystem platformSystem, GuideMarkTypes types)
@@ -45,6 +56,11 @@ namespace Bulldozer
                 PaintTropics(platformSystem);
             }
 
+            if ((types & GuideMarkTypes.MinorMeridian) == GuideMarkTypes.MinorMeridian)
+            {
+                PaintMinorMeridians(platformSystem);
+            }
+
             if ((types & GuideMarkTypes.Meridian) == GuideMarkTypes.Meridian)
             {
                 PaintMeridians(platformSystem);
@@ -53,6 +69,11 @@ namespace Bulldozer
             if ((types & GuideMarkTypes.Equator) == GuideMarkTypes.Equator)
             {
                 PaintEquator(platformSystem);
+            }
+
+            if ((types & GuideMarkTypes.Pole) == GuideMarkTypes.Pole)
+            {
+                PaintPoles(platformSystem);
             }
         }
 
@@ -86,7 +107,7 @@ namespace Bulldozer
                 try
                 {
                     platformSystem.SetReformType(actual, 1);
-                    platformSystem.SetReformColor(actual, 7);
+                    platformSystem.SetReformColor(actual, BrushColors[GuideMarkTypes.Equator]);
                 }
                 catch (Exception e)
                 {
@@ -151,7 +172,56 @@ namespace Bulldozer
                 try
                 {
                     platformSystem.SetReformType(actualIndex, 1);
-                    platformSystem.SetReformColor(actualIndex, 12);
+                    platformSystem.SetReformColor(actualIndex, BrushColors[GuideMarkTypes.Meridian]);
+                }
+                catch (Exception e)
+                {
+                    logger.LogWarning($"exception while setting reform at index {actualIndex} max={platformSystem.reformData.Length} {e.Message}");
+                }
+            }
+        }
+
+        private static void PaintMinorMeridians(PlatformSystem platformSystem)
+        {
+            var planetRadius = platformSystem.planet.radius;
+            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
+
+            var indexesToPaint = new List<int>();
+            var interval = PluginConfig.minorMeridianInterval.Value;
+            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
+            for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
+            {
+                if (Math.Abs(lat) > Math.Abs(tropicLatitudes[3]))
+                    continue;
+                for (var meridianOffset = -180; meridianOffset < 180; meridianOffset += interval)
+                {
+                    var lonOffsetMin = -1;
+
+                    var lonOffsetMax = 2;
+
+                    HashSet<int> actualIndexes = new HashSet<int>();
+                    for (var lonOffset = lonOffsetMin; lonOffset < lonOffsetMax; lonOffset++)
+                    {
+                        var lon = coordLineOffset * lonOffset + meridianOffset;
+                        var position = LatLonToPosition(lat, lon, planetRadius);
+
+                        var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
+
+                        indexesToPaint.Add(reformIndexForPosition);
+                        actualIndexes.Add(reformIndexForPosition);
+                    }
+                }
+            }
+
+            indexesToPaint.Sort();
+            InterpolateMissingIndexes(indexesToPaint);
+            foreach (var meridianIndex in indexesToPaint)
+            {
+                var actualIndex = Math.Max(0, meridianIndex);
+                try
+                {
+                    platformSystem.SetReformType(actualIndex, 1);
+                    platformSystem.SetReformColor(actualIndex, BrushColors[GuideMarkTypes.MinorMeridian]);
                 }
                 catch (Exception e)
                 {
@@ -186,7 +256,36 @@ namespace Bulldozer
             foreach (var ndx in indexes)
             {
                 platformSystem.SetReformType(ndx, 1);
-                platformSystem.SetReformColor(ndx, 2);
+                platformSystem.SetReformColor(ndx, BrushColors[GuideMarkTypes.Tropic]);
+            }
+        }
+
+        private static void PaintPoles(PlatformSystem platformSystem)
+        {
+            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
+            // poles will be anything in the first two tropics
+            var indexes = new List<int>();
+            var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
+            var signs = new[] { 1, -1 };
+            for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
+            {
+                if (Math.Abs(lat) <= Math.Abs(tropicLatitudes[0]) + coordLineOffset)
+                    continue;
+                for (var lon = -179.9f; lon < 180; lon += coordLineOffset)
+                {
+                    var position = LatLonToPosition(lat, lon, platformSystem.planet.radius);
+
+                    var reformIndexForSegment = platformSystem.GetReformIndexForPosition(position);
+                    if (reformIndexForSegment >= 0)
+                    {
+                        indexes.Add(reformIndexForSegment);
+                    }
+                }
+            }
+            foreach (var ndx in indexes)
+            {
+                platformSystem.SetReformType(ndx, 1);
+                platformSystem.SetReformColor(ndx, BrushColors[GuideMarkTypes.Pole]);
             }
         }
 

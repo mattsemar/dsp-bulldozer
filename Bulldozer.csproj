@@ -28,8 +28,8 @@
       <HintPath>..\Libs\0Harmony.dll</HintPath>
     </Reference>
 
-    <Reference Include="Assembly-CSharp, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null">
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Dyson Sphere Program\DSPGAME_Data\Managed\Assembly-CSharp.dll</HintPath>
+    <Reference Include="Assembly-CSharp">
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Dyson Sphere Program\DSPGAME_Data\Managed\publicized_assemblies\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="BepInEx">
       <HintPath>..\Libs\BepInEx.dll</HintPath>
@@ -79,19 +79,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Examples"/>
-    <Folder Include="Libs"/>
+    <Folder Include="Examples" />
+    <Folder Include="Libs" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Remove="META-INF\MANIFEST.MF"/>
-    <None Remove="compile.ps1"/>
-    <None Remove="bulldozer.zip"/>
+    <None Remove="META-INF\MANIFEST.MF" />
+    <None Remove="compile.ps1" />
+    <None Remove="bulldozer.zip" />
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="COPY $(TargetPath) &quot;%25ProgramFiles(x86)%25\Steam\steamapps\common\Dyson Sphere Program\BepInEx\scripts&quot;"/>
-    <Exec Command="COPY $(TargetPath) C:\Users\matts\AppData\Roaming\r2modmanPlus-local\DysonSphereProgram\profiles\Default\BepInEx\scripts"/>
+    <Exec Command="COPY $(TargetPath) &quot;%25ProgramFiles(x86)%25\Steam\steamapps\common\Dyson Sphere Program\BepInEx\scripts&quot;" />
+    <Exec Command="COPY $(TargetPath) C:\Users\matts\AppData\Roaming\r2modmanPlus-local\DysonSphereProgram\profiles\Default\BepInEx\scripts" />
   </Target>
 
 </Project>
