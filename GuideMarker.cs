@@ -20,35 +20,30 @@ namespace Bulldozer
     {
         public static ManualLogSource logger;
 
-        public static readonly Dictionary<GuideMarkTypes, int> BrushColors = new Dictionary<GuideMarkTypes, int>
-        {
-            [GuideMarkTypes.Equator] = 7, // green on top right of colors (in default section)
-            [GuideMarkTypes.Meridian] = 12, // dark blue
-            [GuideMarkTypes.MinorMeridian] = 3, // orange
-            [GuideMarkTypes.Tropic] = 2, // dark red on top row
-            [GuideMarkTypes.Pole] = 0, // white
-        };
-
         private static readonly float[] TropicLats = { 86f + 11f / 60f, 84.5f, 82.5f, 79.1f, 75.25f, 70.0f + 11.0f / 60f, 64.75f, 55f + 29f / 60f, 46.75f, 28.75f };
 
+        // Map GuideMarkType to PluginConfigVariable in a switch statement. For whatever reason having a staticly initted Dictionary resulted in null refs.
+        // That might be because of the order that things get instantiated 
+        private static int GetCustomColorIndex(GuideMarkTypes guideMarkType)
+        {
+            switch (guideMarkType)
+            {
+                case GuideMarkTypes.Equator: return PluginConfig.guideLinesEquatorColor.Value;
+                case GuideMarkTypes.Meridian: return PluginConfig.guideLinesMeridianColor.Value;
+                case GuideMarkTypes.MinorMeridian: return PluginConfig.guideLinesMinorMeridianColor.Value;
+                case GuideMarkTypes.Tropic: return PluginConfig.guideLinesTropicColor.Value;
+                case GuideMarkTypes.Pole: return PluginConfig.guideLinesPoleColor.Value;
+                default:
+                    Log.logger.LogWarning($"no defined plugin config to get custom color for GuideMarkType {guideMarkType}");
+                    return 7;
+            }
+        }
+        
         public static void AddGuideMarks(PlatformSystem platformSystem, GuideMarkTypes types)
         {
             if (types == GuideMarkTypes.None)
             {
                 return;
-            }
-
-            if ((types & GuideMarkTypes.Tropic) == GuideMarkTypes.Tropic)
-            {
-                try
-                {
-                    PaintTropics(platformSystem);
-                }
-                catch (Exception e)
-                {
-                    logger.LogWarning($"failed to paint tropics {e.Message}");
-                    logger.LogWarning(e.StackTrace);
-                }
             }
 
             if ((types & GuideMarkTypes.Tropic) == GuideMarkTypes.Tropic)
@@ -101,13 +96,16 @@ namespace Bulldozer
 
             indexes.Sort();
             InterpolateMissingIndexes(indexes);
+            var colorIndex = GetCustomColorIndex(GuideMarkTypes.Equator);
+
+            Console.WriteLine($"custom color index for equator {colorIndex}");
             foreach (var equatorIndex in indexes)
             {
                 var actual = Math.Max(0, equatorIndex);
                 try
                 {
                     platformSystem.SetReformType(actual, 1);
-                    platformSystem.SetReformColor(actual, BrushColors[GuideMarkTypes.Equator]);
+                    platformSystem.SetReformColor(actual, colorIndex);
                 }
                 catch (Exception e)
                 {
@@ -166,13 +164,14 @@ namespace Bulldozer
 
             indexesToPaint.Sort();
             InterpolateMissingIndexes(indexesToPaint);
+            var customColor = GetCustomColorIndex(GuideMarkTypes.Meridian);
             foreach (var meridianIndex in indexesToPaint)
             {
                 var actualIndex = Math.Max(0, meridianIndex);
                 try
                 {
                     platformSystem.SetReformType(actualIndex, 1);
-                    platformSystem.SetReformColor(actualIndex, BrushColors[GuideMarkTypes.Meridian]);
+                    platformSystem.SetReformColor(actualIndex, customColor);
                 }
                 catch (Exception e)
                 {
@@ -215,13 +214,14 @@ namespace Bulldozer
 
             indexesToPaint.Sort();
             InterpolateMissingIndexes(indexesToPaint);
+            var customColor = GetCustomColorIndex(GuideMarkTypes.MinorMeridian);
             foreach (var meridianIndex in indexesToPaint)
             {
                 var actualIndex = Math.Max(0, meridianIndex);
                 try
                 {
                     platformSystem.SetReformType(actualIndex, 1);
-                    platformSystem.SetReformColor(actualIndex, BrushColors[GuideMarkTypes.MinorMeridian]);
+                    platformSystem.SetReformColor(actualIndex, customColor);
                 }
                 catch (Exception e)
                 {
@@ -256,7 +256,7 @@ namespace Bulldozer
             foreach (var ndx in indexes)
             {
                 platformSystem.SetReformType(ndx, 1);
-                platformSystem.SetReformColor(ndx, BrushColors[GuideMarkTypes.Tropic]);
+                platformSystem.SetReformColor(ndx, GetCustomColorIndex(GuideMarkTypes.Tropic));
             }
         }
 
@@ -266,7 +266,6 @@ namespace Bulldozer
             // poles will be anything in the first two tropics
             var indexes = new List<int>();
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
-            var signs = new[] { 1, -1 };
             for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
             {
                 if (Math.Abs(lat) <= Math.Abs(tropicLatitudes[0]) + coordLineOffset)
@@ -282,10 +281,12 @@ namespace Bulldozer
                     }
                 }
             }
+
+            var color = GetCustomColorIndex(GuideMarkTypes.Pole);
             foreach (var ndx in indexes)
             {
                 platformSystem.SetReformType(ndx, 1);
-                platformSystem.SetReformColor(ndx, BrushColors[GuideMarkTypes.Pole]);
+                platformSystem.SetReformColor(ndx, color);
             }
         }
 

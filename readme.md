@@ -9,7 +9,8 @@ Raising/lowering veins is now a separate operation that takes around a minute to
 
 Use DeleteFactoryTrash config property to automatically delete items that would be littered
 
-Non-cheaty options are not quite complete. For now, foundation is deducted properly but soil pile limits are not honored.
+Non-cheaty options are not quite complete. For now, foundation is deducted properly but soil pile limits are not honored. For this mode,
+foundation will be taken first from the user's inventory and then from storage containers and logistics stations on the current planet.
 
 Check the "Environment Modification" menu to find the action button
 ![Example2](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example2.png?raw=true)
@@ -32,6 +33,14 @@ Extract the archive file and drag `Bulldozer.dll` into the `BepInEx/plugins` dir
 Click the `Install with Mod Manager` link above.
 
 ## Changelog
+
+#### v1.0.20
+
+Added ability to customize colors for all guide mark types
+
+#### v1.0.20
+
+Added option to paint poles  
 
 #### v1.0.19
 
@@ -67,44 +76,22 @@ Add Universe Exploration 3 as a prerequisite, fix issue with meridian line being
 Fix issue where checkbox wasn't being hidden
 
 #### v1.0.11
-* Add confirmation prompt
-* Enable destruction of factory machines (assemblers, etc). By default will not do foundation when enabled
+Add confirmation prompt
+Enable destruction of factory machines (assemblers, etc). By default will not do foundation when enabled
 
-#### v1.0.10
-Correct version
-
-#### v1.0.9
-Make hidden feature execution independent of foundation adding
-
-#### v1.0.8
- Added support for BepInEx Configuration
- Add config option for overriding raise/bury veins, defaults to using same settings as game ui
- Add config option for overriding foundation decoration style, default is to follow game ui setting
- Add config option to enable skipping equator or meridian painting (individually)
- Add config option for number of update actions executed on each frame
- Added better support for larger radius planets
-
-#### v1.0.7
+#### v1 - v1.0.10
+Added support for BepInEx Configuration
+Add config option for overriding raise/bury veins, defaults to using same settings as game ui
+Add config option for overriding foundation decoration style, default is to follow game ui setting
+Add config option to enable skipping equator or meridian painting (individually)
+Add config option for number of update actions executed on each frame
+Added better support for larger radius planets
 Fix issue with hover text position
 Add option to skip repaving already paved locations
 Fix equator & meridian lines for planets with non-default diameter
-
-#### v1.0.6
 Added hover text to action button and checkbox and added ability to cancel execution
-
-#### v1.0.5
-Handle exception in vegetation removal
-
-#### v1.0.4
 Fixed issue where action button icon was showing in other categories
 More points added to try and catch missed veins in raise/lower on subsequent executions
-
-#### v1.0.3
-Fixed issue where action was not invoked on button press
-
-#### v1.0.2
-First version
-
 
 ## Contact
 Bugs? Contact me on discord: mattersnot#1983 or create an issue in the github repository.

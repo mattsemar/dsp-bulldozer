@@ -60,6 +60,13 @@ namespace Bulldozer
         public static ConfigEntry<bool> addGuideLinesPoles;
         public static ConfigEntry<int> minorMeridianInterval;
 
+        public static ConfigEntry<int> guideLinesEquatorColor;
+        public static ConfigEntry<int> guideLinesTropicColor;
+        public static ConfigEntry<int> guideLinesMeridianColor;
+        public static ConfigEntry<int> guideLinesMinorMeridianColor;
+        public static ConfigEntry<int> guideLinesPoleColor;
+
+
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
 
@@ -98,11 +105,24 @@ namespace Bulldozer
             addGuideLinesTropic = configFile.Bind("Decoration", "AddGuideLinesTropic", true,
                 "Enable/disable of the tropic guidelines individually. No effect if AddGuideLines is disabled");
             addGuideLinesPoles = configFile.Bind("Decoration", "AddGuideLinesPoles", false,
-                "Enable/disable painting polar areas. No effect if AddGuideLines is disabled");
-            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0, 
-                new ConfigDescription("Paint meridians starting at 0 and incrementing by this value. E.g., a value of 10 would add a meridian line every 10 degrees 18, 36 total. 0 to disable",
-                new AcceptableValueRange<int>(0, 89), "meridians"));
+                "Enable/disable painting polar areas. No effect if AddGuideLines is disabled. Poles are considered first 2 tropics");
+            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0,
+                new ConfigDescription(
+                    "Paint meridians starting at 0 and incrementing by this value. E.g., a value of 10 would add a meridian line every 10 degrees 18, 36 total. 0 to disable",
+                    new AcceptableValueRange<int>(0, 89), "meridians"));
+            
+            guideLinesEquatorColor = configFile.Bind("CustomColors", "Equator Color", 7,
+                new ConfigDescription("Index of color in palette to paint equator. Default is green", new AcceptableValueRange<int>(0, 31), "color"));
+            guideLinesMeridianColor = configFile.Bind("CustomColors", "Meridian Color", 12,
+                new ConfigDescription("Index of color in palette to paint major meridian lines", new AcceptableValueRange<int>(0, 31), "color"));
+            guideLinesMinorMeridianColor = configFile.Bind("CustomColors", "Minor Meridian Color", 3,
+                new ConfigDescription("Index of color in palette to paint minor meridian lines", new AcceptableValueRange<int>(0, 31), "color"));
 
+            guideLinesTropicColor = configFile.Bind("CustomColors", "Tropic Color", 2,
+                new ConfigDescription("Index of color in palette to paint tropic lines", new AcceptableValueRange<int>(0, 31), "color"));
+            guideLinesPoleColor = configFile.Bind("CustomColors", "Pole Color", 1,
+                new ConfigDescription("Index of color in palette to paint poles", new AcceptableValueRange<int>(0, 31), "color"));
+          
             foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool,
                 "Change to have a permanent setting instead of tracking the game's current config");
 

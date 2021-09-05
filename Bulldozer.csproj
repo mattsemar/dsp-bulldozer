@@ -69,6 +69,8 @@
       <AutoGen>True</AutoGen>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
+    <Compile Remove="LogisticsWindow.cs" />
+    <Compile Remove="LogisticsNetwork.cs" />
   </ItemGroup>
 
   <ItemGroup>

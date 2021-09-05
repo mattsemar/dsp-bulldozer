@@ -39,11 +39,11 @@ namespace Bulldozer
             for (int i = 1; i < _factory.transport.stationCursor; i++)
             {
                 var station = _factory.transport.stationPool[i];
-                if (station.id <= 0)
+                if (station?.id != i)
                     continue;
                 foreach (var store in station.storage)
                 {
-                    if (store.itemId < 1)
+                    if (store.itemId != itemId)
                     {
                         continue;
                     }
@@ -180,7 +180,16 @@ namespace Bulldozer
                 remainingToRemove -= playerItemCount;
             }
 
-            var localStorageItems = CountLocalStorageItems(itemId);
+            var localStorageItems = 0;
+            try
+            {
+                localStorageItems = CountLocalStorageItems(itemId);
+            }
+            catch (Exception e)
+            {
+                Log.logger.LogWarning($"failure while trying to count items from local storage {e.Message}");
+                Log.logger.LogWarning(e.StackTrace);
+            }
             if (localStorageItems > remainingToRemove)
             {
                 message += $"\n{remainingToRemove} of {itemName} will be removed from storage ({localStorageItems} total). ";
@@ -196,7 +205,16 @@ namespace Bulldozer
 
             if (remainingToRemove <= 0)
                 return (message, remainingToRemove);
-            var stationItems = CountLocalStationItems(itemId);
+            var stationItems = 0;
+            try
+            {
+                stationItems = CountLocalStationItems(itemId);
+            }
+            catch (Exception e)
+            {
+                Log.logger.LogWarning($"failure while trying to count items from local logistics {e.Message}");
+                Log.logger.LogWarning(e.StackTrace);
+            }
             if (stationItems > remainingToRemove)
             {
                 message += $"\n{remainingToRemove} of {itemName} will be removed from local logistics stations ({stationItems} total). ";

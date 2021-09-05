@@ -12,12 +12,13 @@ namespace Bulldozer
     public class PluginConfigWindow
     {
         public static bool visible;
-        private static Rect _windowRect = new Rect(300f, 250f, 500f, 600f);
+        private static Rect _windowRect = new Rect((Screen.width / 3) * 2, 100f, 500f, 820f);
 
         private static int _leftColumnWidth;
         public static bool NeedReinit;
 
         private static Texture2D _tooltipBg;
+        private static Dictionary<Color, Texture2D> _customColorTextures = new Dictionary<Color, Texture2D>();
 
         private static int _loggedMessageCount = 0;
         private static Dictionary<string, int> previousSelections = new Dictionary<string, int>();
@@ -60,7 +61,6 @@ namespace Bulldozer
             GUI.backgroundColor = Color.white;
             GUI.contentColor = Color.white;
             GUI.color = Color.white;
-
 
             if (_mySkin == null || NeedReinit)
             {
@@ -108,10 +108,7 @@ namespace Bulldozer
             background.SetPixel(0, 0, Color.white);
             background.Apply();
             _tooltipBg = background;
-            // var windowBackground = new Texture2D(1, 1, TextureFormat.RGB24, false);
-            // var color = new Color(0.15f, 0.15f, 0.15f, 0);
-            // windowBackground.SetPixel(0, 0, color);
-            // windowBackground.Apply();
+
             InitWindowRect();
             NeedReinit = false;
         }
@@ -119,7 +116,6 @@ namespace Bulldozer
 
         private static void WindowFn(int id)
         {
-            var origBgColor = GUI.backgroundColor;
             SaveCurrentGuiOptions();
 
 
@@ -154,7 +150,10 @@ namespace Bulldozer
                     if (configDefinition.Section != lastSection)
                     {
                         // DrawCenteredLabel(configDefinition.Section);
-                        DrawCenteredLabel("");
+                        if (configDefinition.Section == "CustomColors")
+                            DrawCenteredLabel("0-15 are built in colors, 16-31 are user defined");
+                        else
+                            DrawCenteredLabel("");
                     }
 
                     lastSection = configDefinition.Section;
@@ -199,8 +198,6 @@ namespace Bulldozer
             GUILayout.EndVertical();
         }
 
-        private static int logcountdown = 2;
-
         private static void DrawSetting(ConfigEntryBase configEntry)
         {
             GUILayout.BeginHorizontal();
@@ -232,11 +229,7 @@ namespace Bulldozer
 
         private static bool DrawRangeField(ConfigEntryBase configEntry)
         {
-            if (configEntry.Definition.Key == "MinorMeridianInterval" && logcountdown-- > 0)
-            {
-                Log.logger.LogWarning($"here is type {configEntry.SettingType} {configEntry.SettingType == typeof(Int32)}");
-            }
-
+            bool addColorIndicator = configEntry.Description.Tags.Contains("color");
             if (configEntry.Description.AcceptableValues.GetType() != typeof(AcceptableValueRange<int>))
                 return false;
 
@@ -255,6 +248,13 @@ namespace Bulldozer
 
             var strVal = configEntry.BoxedValue.ToString();
             var strResult = GUILayout.TextField(strVal, GUILayout.Width(50));
+            if (addColorIndicator)
+            {
+                var customColor = GetColorByIndex((int)configEntry.BoxedValue);
+                var customColorTexture = GetTextureForColor(customColor);
+                GUILayout.Label(customColorTexture);
+            }
+
             GUILayout.EndHorizontal();
             if (strResult != strVal)
             {
@@ -271,6 +271,41 @@ namespace Bulldozer
             }
 
             return true;
+        }
+
+        private static Color GetColorByIndex(int index)
+        {
+            if (index < 0 || index > 31)
+            {
+                Log.logger.LogWarning($"color index out of bounds {index}");
+                index = 3;
+            }
+            Color[] reformColors = Configs.builtin.reformColors;
+            if (index < 16)
+            {
+                return reformColors[index];
+            }
+
+            return GameMain.mainPlayer.factory.platformSystem.reformCustomColors[index - 16];
+        }
+
+        private static Texture2D GetTextureForColor(Color color)
+        {
+            if (_customColorTextures.ContainsKey(color))
+            {
+                return _customColorTextures[color];
+            }
+
+            var texture = new Texture2D(15, 15, TextureFormat.RGB24, false);
+            var colorBlock = new Color[texture.width * texture.height];
+            for (int i = 0; i < colorBlock.Length; i++)
+            {
+                colorBlock[i] = color;
+            }
+            texture.SetPixels(0, 0, texture.width, texture.height, colorBlock);
+            texture.Apply();
+            _customColorTextures[color] = texture;
+            return texture;
         }
 
         private static void DrawSettingName(ConfigEntryBase setting)
@@ -308,7 +343,6 @@ namespace Bulldozer
             }
 
             var guiContents = names.Select(n => GetGuiContent(enumType, n, entry.Description.Description, selectedName == n));
-            // GUILayout.BeginVertical("Box");
             GUILayout.BeginVertical("Box");
             if (!previousSelections.ContainsKey(entry.Definition.Key))
             {
@@ -321,7 +355,6 @@ namespace Bulldozer
             if (previousSelections[entry.Definition.Key] != index)
             {
                 var updatedEnumValue = Enum.Parse(enumType, names[index], true);
-                Console.WriteLine($"updating selection to {names[index]}, was {names[previousSelection]} {updatedEnumValue}");
                 entry.BoxedValue = updatedEnumValue;
                 previousSelections[entry.Definition.Key] = index;
             }
