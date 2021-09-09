@@ -1,6 +1,4 @@
-﻿## Bulldozer
-
-Get your planet ready for a shiny new factory. Cover it in foundation in seconds or remove all existing factory buildings.
+﻿Get your planet ready for a shiny new factory. Cover it in foundation in seconds or remove all existing factory buildings.
 
 Coming soon, support for non-cheaty mode where foundation & soil pile from player's inventory are used (see 'Cheatiness' config properties).
 
@@ -32,9 +30,16 @@ Extract the archive file and drag `Bulldozer.dll` into the `BepInEx/plugins` dir
 
 Click the `Install with Mod Manager` link above.
 
+## Acknowledgements
+Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful suggestions and bug reports. 
+
 ## Changelog
 
-#### v1.0.20
+#### v1.0.22
+
+Fix bug in veins alteration for planets where no foundation was placed
+
+#### v1.0.21
 
 Added ability to customize colors for all guide mark types
 

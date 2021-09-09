@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.21";
+        public const string PluginVersion = "1.0.22";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
         private static int _soilToDeduct = 0;
@@ -106,10 +106,19 @@ namespace Bulldozer
 
                     try
                     {
+                        if (planetFactory.tmp_levelChanges == null)
+                        {
+                            logger.LogDebug($"level changes was null, calling flatten terrain to init");
+                            planetFactory.FlattenTerrain(point, Quaternion.identity,
+                                new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: reformTool.buryVeins,
+                                lift: true);
+                        }
+
                         planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, bury);
                     }
                     catch (Exception e)
                     {
+                        Logger.LogWarning($"tmp height is null {planetFactory.tmp_levelChanges == null}");
                         Logger.LogWarning($"exception while paving {e.Message} {e.StackTrace}");
                     }
 
@@ -130,6 +139,8 @@ namespace Bulldozer
                 SetFlattenRequestedFlag(false);
                 try
                 {
+                    if (GameMain.mainPlayer.planetData.UpdateDirtyMeshes())
+                        GameMain.mainPlayer.factory.RenderLocalPlanetHeightmap();
                     PaintPlanet();
                     LogAndPopupMessage("Bulldozer done adding foundation");
                 }
@@ -233,6 +244,7 @@ namespace Bulldozer
             {
                 guideMarkTypes |= GuideMarkTypes.Tropic;
             }
+
             if (PluginConfig.addGuideLinesPoles.Value)
             {
                 guideMarkTypes |= GuideMarkTypes.Pole;
@@ -647,5 +659,7 @@ namespace Bulldozer
         }
     }
 }
+
+
 
 
