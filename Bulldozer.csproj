@@ -34,6 +34,9 @@
     <Reference Include="BepInEx">
       <HintPath>..\Libs\BepInEx.dll</HintPath>
     </Reference>
+    <Reference Include="BepInEx, Version=5.4.11.0, Culture=neutral, PublicKeyToken=null">
+      <HintPath>..\dsp-personal-logistics\libs\BepInEx.dll</HintPath>
+    </Reference>
     <Reference Include="ConfigurationManager, Version=16.3.0.0, Culture=neutral, PublicKeyToken=null">
       <HintPath>..\Libs\ConfigurationManager.dll</HintPath>
     </Reference>
