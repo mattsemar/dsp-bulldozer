@@ -20,7 +20,10 @@ namespace Bulldozer
     {
         public static ManualLogSource logger;
 
-        private static readonly float[] TropicLats = { 86f + 11f / 60f, 84.5f, 82.5f, 79.1f, 75.25f, 70.0f + 11.0f / 60f, 64.75f, 55f + 29f / 60f, 46.75f, 28.75f };
+        private static readonly float[] TropicLats =
+        {
+            86f + 11f / 60f, 84.5f, 82.5f, 79.1f, 75.25f, 70.0f + 11.0f / 60f, 64.75f, 55f + 29f / 60f, 46.75f, 28.75f
+        };
 
         // Map GuideMarkType to PluginConfigVariable in a switch statement. For whatever reason having a staticly initted Dictionary resulted in null refs.
         // That might be because of the order that things get instantiated 
@@ -34,11 +37,12 @@ namespace Bulldozer
                 case GuideMarkTypes.Tropic: return PluginConfig.guideLinesTropicColor.Value;
                 case GuideMarkTypes.Pole: return PluginConfig.guideLinesPoleColor.Value;
                 default:
-                    Log.logger.LogWarning($"no defined plugin config to get custom color for GuideMarkType {guideMarkType}");
+                    Log.logger.LogWarning(
+                        $"no defined plugin config to get custom color for GuideMarkType {guideMarkType}");
                     return 7;
             }
         }
-        
+
         public static void AddGuideMarks(PlatformSystem platformSystem, GuideMarkTypes types)
         {
             if (types == GuideMarkTypes.None)
@@ -81,7 +85,8 @@ namespace Bulldozer
             {
                 for (var latOffset = -1; latOffset < 1; latOffset++)
                 {
-                    var position = LatLonToPosition(0f + latOffset * coordLineOffset, lon, platformSystem.planet.radius);
+                    var position = LatLonToPosition(0f + latOffset * coordLineOffset, lon,
+                        platformSystem.planet.radius);
 
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
                     if (reformIndexForPosition >= platformSystem.reformData.Length || reformIndexForPosition < 0)
@@ -109,7 +114,8 @@ namespace Bulldozer
                 }
                 catch (Exception e)
                 {
-                    logger.LogWarning($"exception while setting reform at index {equatorIndex} max={platformSystem.reformData.Length} {e.Message}");
+                    logger.LogWarning(
+                        $"exception while setting reform at index {equatorIndex} max={platformSystem.reformData.Length} {e.Message}");
                 }
             }
         }
@@ -120,7 +126,9 @@ namespace Bulldozer
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
 
             var indexesToPaint = new List<int>();
-            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
+            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f
+                ? TropicLats
+                : GetTropicLatitudes(platformSystem);
             for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
             {
                 for (var meridianOffset = 0; meridianOffset < 4; meridianOffset++)
@@ -175,7 +183,8 @@ namespace Bulldozer
                 }
                 catch (Exception e)
                 {
-                    logger.LogWarning($"exception while setting reform at index {actualIndex} max={platformSystem.reformData.Length} {e.Message}");
+                    logger.LogWarning(
+                        $"exception while setting reform at index {actualIndex} max={platformSystem.reformData.Length} {e.Message}");
                 }
             }
         }
@@ -187,7 +196,9 @@ namespace Bulldozer
 
             var indexesToPaint = new List<int>();
             var interval = PluginConfig.minorMeridianInterval.Value;
-            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
+            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f
+                ? TropicLats
+                : GetTropicLatitudes(platformSystem);
             for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
             {
                 if (Math.Abs(lat) > Math.Abs(tropicLatitudes[3]))
@@ -225,14 +236,17 @@ namespace Bulldozer
                 }
                 catch (Exception e)
                 {
-                    logger.LogWarning($"exception while setting reform at index {actualIndex} max={platformSystem.reformData.Length} {e.Message}");
+                    logger.LogWarning(
+                        $"exception while setting reform at index {actualIndex} max={platformSystem.reformData.Length} {e.Message}");
                 }
             }
         }
 
         private static void PaintTropics(PlatformSystem platformSystem)
         {
-            var latitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
+            var latitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f
+                ? TropicLats
+                : GetTropicLatitudes(platformSystem);
             var signs = new[] { 1, -1 };
             var indexes = new List<int>();
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
@@ -262,7 +276,9 @@ namespace Bulldozer
 
         private static void PaintPoles(PlatformSystem platformSystem)
         {
-            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f ? TropicLats : GetTropicLatitudes(platformSystem);
+            var tropicLatitudes = Math.Abs(platformSystem.planet.radius - 200f) < 0.01f
+                ? TropicLats
+                : GetTropicLatitudes(platformSystem);
             // poles will be anything in the first two tropics
             var indexes = new List<int>();
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
@@ -302,7 +318,9 @@ namespace Bulldozer
 
                 double latitude = Mathf.Asin(position.y);
                 var latitudeIndex = (float)(latitude / 6.28318548202515) * platformSystem.segment;
-                var longitudeSegmentCount = PlatformSystem.DetermineLongitudeSegmentCount(Mathf.FloorToInt(Mathf.Abs(latitudeIndex)), platformSystem.segment);
+                var longitudeSegmentCount =
+                    PlatformSystem.DetermineLongitudeSegmentCount(Mathf.FloorToInt(Mathf.Abs(latitudeIndex)),
+                        platformSystem.segment);
                 if (lastLen != longitudeSegmentCount)
                 {
                     logger.LogDebug($"at lat = {lat} length is {longitudeSegmentCount}, previous len was {lastLen}");
@@ -349,12 +367,13 @@ namespace Bulldozer
 
         public static Vector3 LatLonToPosition(float lat, float lon, float earthRadius)
         {
-            var latRad = Math.PI / 180 * lat;
-            var lonRad = Math.PI / 180 * lon;
-            var x = (float)(Math.Cos(latRad) * Math.Cos(lonRad));
-            var z = (float)(Math.Cos(latRad) * Math.Sin(lonRad));
-            var y = (float)Math.Sin(latRad);
-            return new Vector3(x, y, z).normalized * earthRadius;
+            var latRad = Mathf.PI / 180 * lat;
+            var lonRad = Mathf.PI / 180 * lon;
+            var y = Mathf.Sin(latRad);
+            var num5 = Mathf.Cos(latRad);
+            var num6 = Mathf.Sin(lonRad);
+            var num7 = Mathf.Cos(lonRad);
+            return new Vector3(num5 * num6, y, num5 * -num7).normalized * earthRadius;
         }
     }
 }
