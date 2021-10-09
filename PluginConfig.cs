@@ -75,6 +75,7 @@ namespace Bulldozer
 
         // enable normal action of plugin when destroyAssemblers is enabled
         public static ConfigEntry<bool> flattenWithFactoryTearDown;
+        public static ConfigEntry<bool> skipDestroyingStations;
 
         public static ConfigFile PluginConfigFile;
 
@@ -130,6 +131,8 @@ namespace Bulldozer
                 "Erase all items littered while destroying factory items");
             flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
                 "Use this to enable adding foundation while destroying existing factory");
+            skipDestroyingStations = configFile.Bind("Destruction", "SkipDestroyingStations", false,
+                "Enable/disable teardown of logistics stations");
 
             alterVeinState = configFile.Bind("UIOnly", "AlterVeinState", false,
                 new ConfigDescription("Don't edit, use UI checkbox. By default, veins will not be lowered or raised. Enabling takes much longer",

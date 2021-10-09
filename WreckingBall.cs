@@ -51,7 +51,7 @@ namespace Bulldozer
 
         public static void DoWorkItems(PlanetFactory factory)
         {
-            if (_instance != null && _instance._wreckingBallWork.Count > 0)
+            if (_instance != null)
             {
                 if (_instance._factory != factory)
                 {
@@ -95,7 +95,7 @@ namespace Bulldozer
                     }
                 }
             }
-            else if (_running)
+            if (_running && _wreckingBallWork.Count < 1)
             {
                 _clearStopWatch.Stop();
                 var elapsedMs = _clearStopWatch.ElapsedMilliseconds;
@@ -173,7 +173,8 @@ namespace Bulldozer
                                 break;
                         }
 
-                        if (itemMatchesPhase)
+                        bool skipItem = PluginConfig.skipDestroyingStations.Value && _factory.entityPool[itemId].stationId > 0;
+                        if (itemMatchesPhase && !skipItem)
                         {
                             if (!countsByPhase.ContainsKey(phase))
                             {
@@ -181,6 +182,7 @@ namespace Bulldozer
                             }
 
                             countsByPhase[phase]++;
+                            
                             scheduledItemIds.Add(itemId);
                             _wreckingBallWork.Add(
                                 new WreckingBallWorkItem

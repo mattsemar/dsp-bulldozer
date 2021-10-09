@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.22";
+        public const string PluginVersion = "1.0.23";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
         private static int _soilToDeduct = 0;
@@ -141,7 +141,7 @@ namespace Bulldozer
                 {
                     if (GameMain.mainPlayer.planetData.UpdateDirtyMeshes())
                         GameMain.mainPlayer.factory.RenderLocalPlanetHeightmap();
-                    PaintPlanet();
+                    Decorate();
                     LogAndPopupMessage("Bulldozer done adding foundation");
                 }
                 catch (Exception e)
@@ -152,74 +152,16 @@ namespace Bulldozer
             }
         }
 
-        private void PaintPlanet()
+        private void Decorate()
         {
-            var maxReformCount = GameMain.mainPlayer?.factory?.platformSystem.maxReformCount;
             var platformSystem = GameMain.mainPlayer?.factory?.platformSystem;
             var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
-            if (maxReformCount == null || platformSystem == null || actionBuild == null)
+            if (platformSystem == null || actionBuild == null)
             {
                 return;
             }
 
-            // reform brush type of 7 is foundation with no decoration
-            // brush type 2 is decorated, but not painted
-            // 1 seems to be paint mode
-            var brushType = 1;
-            switch (PluginConfig.foundationDecorationMode.Value)
-            {
-                case FoundationDecorationMode.Tool:
-                    brushType = actionBuild.reformTool.brushType;
-                    break;
-                case FoundationDecorationMode.Paint:
-                    brushType = 1;
-                    break;
-                case FoundationDecorationMode.Decorate:
-                    brushType = 2;
-                    break;
-                case FoundationDecorationMode.Clear:
-                    brushType = 7;
-                    break;
-                default:
-                    Logger.LogWarning($"unexpected brush type requested {PluginConfig.foundationDecorationMode.Value}");
-                    break;
-            }
-
-            var consumedFoundation = 0;
-            var foundationUsedUp = false;
-            var outOfFoundationMessageShown = false;
-            for (var index = 0; index < maxReformCount; ++index)
-            {
-                var foundationNeeded = platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
-                if (foundationNeeded > 0 && PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
-                {
-                    consumedFoundation += foundationNeeded;
-                    var reformId = REFORM_ID;
-                    var (itemsRemoved, successful) = StorageSystemManager.RemoveItems(REFORM_ID, foundationNeeded);
-
-                    if (!successful)
-                    {
-                        if (PluginConfig.foundationConsumption.Value == OperationMode.Honest)
-                        {
-                            LogAndPopupMessage($"Out of foundation, halting.");
-                            foundationUsedUp = true;
-                            break;
-                        }
-
-                        if (!outOfFoundationMessageShown)
-                        {
-                            outOfFoundationMessageShown = true;
-                            LogAndPopupMessage($"All foundation used, continuing");
-                        }
-                    }
-                }
-
-                platformSystem.SetReformType(index, brushType);
-                platformSystem.SetReformColor(index, actionBuild.reformTool.brushColor);
-            }
-
-            GameMain.mainPlayer.mecha.AddConsumptionStat(REFORM_ID, consumedFoundation, GameMain.mainPlayer.nearestFactory);
-
+            bool foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem); 
             if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
             {
                 PaintGuideMarkings(platformSystem);
@@ -327,11 +269,7 @@ namespace Bulldozer
                 LogAndPopupMessage("Adding foundation");
 
                 platformSystem.EnsureReformData();
-                PaintPlanet();
-                if (PluginConfig.addGuideLines.Value)
-                {
-                    PaintGuideMarkings(platformSystem);
-                }
+                Decorate();
             }
             else
             {
@@ -508,7 +446,8 @@ namespace Bulldozer
             var popupMessage = $"Please confirm that you would like to do the following: ";
             if (PluginConfig.destroyFactoryAssemblers.Value)
             {
-                popupMessage += $"\nDestroy all factory machines (assemblers, belts, stations, etc)";
+                var machinesMsg = PluginConfig.skipDestroyingStations.Value ? "(assemblers, belts, but not stations)" : "(assemblers, belts, stations, etc)";  
+                popupMessage += $"\nDestroy all factory components {machinesMsg}";
                 var countBuildGhosts = WreckingBall.CountBuildGhosts(GameMain.mainPlayer.factory);
                 if (countBuildGhosts > 0)
                 {
@@ -659,6 +598,7 @@ namespace Bulldozer
         }
     }
 }
+
 
 
 

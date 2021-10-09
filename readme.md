@@ -35,6 +35,11 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+
+#### v1.0.23
+
+Added option for skipping logistics stations when destroying factory components
+
 #### v1.0.22
 
 Fix bug in veins alteration for planets where no foundation was placed
