@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.23";
+        public const string PluginVersion = "1.0.24";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
         private static int _soilToDeduct = 0;
@@ -238,6 +238,11 @@ namespace Bulldozer
 
             for (var id = 0; id < factory.vegePool.Length; ++id)
             {
+                if (factory.vegePool[id].protoId == 9999)
+                {
+                    continue;
+                }
+
                 factory.RemoveVegeWithComponents(id);
             }
 

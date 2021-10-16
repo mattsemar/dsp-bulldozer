@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using HarmonyLib;
 using UnityEngine;
 using static Bulldozer.Log;
 
@@ -27,8 +26,8 @@ namespace Bulldozer
         private static HonestLeveler _instance;
         private readonly Stopwatch _clearStopWatch = new Stopwatch();
         private readonly PlanetFactory _factory;
-        private readonly Player _player;
         private readonly List<LevelerWorkItem> _levelerWork = new List<LevelerWorkItem>();
+        private readonly Player _player;
         private ItemDestructionPhase _previousPhase = ItemDestructionPhase.Done;
         private bool _running;
 

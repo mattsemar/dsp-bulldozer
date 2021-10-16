@@ -31,10 +31,14 @@ Extract the archive file and drag `Bulldozer.dll` into the `BepInEx/plugins` dir
 Click the `Install with Mod Manager` link above.
 
 ## Acknowledgements
-Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful suggestions and bug reports. 
+
+Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful suggestions and bug reports.
 
 ## Changelog
 
+#### v1.0.24
+
+Skip over landing capsule when removing planet vegetation
 
 #### v1.0.23
 
