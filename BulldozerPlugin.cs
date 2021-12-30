@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.24";
+        public const string PluginVersion = "1.0.25";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
         private static int _soilToDeduct = 0;
@@ -161,7 +161,7 @@ namespace Bulldozer
                 return;
             }
 
-            bool foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem); 
+            var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem);
             if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
             {
                 PaintGuideMarkings(platformSystem);
@@ -306,9 +306,15 @@ namespace Bulldozer
             RaiseVeinsWorkList.Clear();
             var tmpVeinsAlterWorkList = new List<PaveWorkItem>();
 
-            foreach (var vein in planet.factory.veinPool)
+            for (var i = 1; i < mainPlayerFactory.veinCursor; i++)
             {
-                var positions = BuildPositionsToRaiseVeins(vein.pos);
+                var vein = mainPlayerFactory.veinPool[i];
+                if (vein.id != i)
+                {
+                    continue;
+                }
+
+                var positions = BuildPositionsToRaiseVeins(vein.pos.normalized * planet.realRadius);
                 foreach (var position in positions)
                 {
                     tmpVeinsAlterWorkList.Add(
@@ -451,7 +457,7 @@ namespace Bulldozer
             var popupMessage = $"Please confirm that you would like to do the following: ";
             if (PluginConfig.destroyFactoryAssemblers.Value)
             {
-                var machinesMsg = PluginConfig.skipDestroyingStations.Value ? "(assemblers, belts, but not stations)" : "(assemblers, belts, stations, etc)";  
+                var machinesMsg = PluginConfig.skipDestroyingStations.Value ? "(assemblers, belts, but not stations)" : "(assemblers, belts, stations, etc)";
                 popupMessage += $"\nDestroy all factory components {machinesMsg}";
                 var countBuildGhosts = WreckingBall.CountBuildGhosts(GameMain.mainPlayer.factory);
                 if (countBuildGhosts > 0)
@@ -603,8 +609,3 @@ namespace Bulldozer
         }
     }
 }
-
-
-
-
-

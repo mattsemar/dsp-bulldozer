@@ -36,6 +36,10 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.0.25
+
+Bugfix: resolved issue where veins were not being raised (thanks Valoneu)
+
 #### v1.0.24
 
 Skip over landing capsule when removing planet vegetation
