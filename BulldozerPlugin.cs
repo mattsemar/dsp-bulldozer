@@ -18,14 +18,16 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.25";
+        public const string PluginVersion = "1.0.26";
 
-        private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new List<PaveWorkItem>();
+        private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new();
         private static int _soilToDeduct = 0;
 
         private static Stopwatch clearStopWatch;
 
         public static BulldozerPlugin instance;
+        private RegionPainter _regionPainter;
+        private PlanetData _regionPainterPlanet;
         private bool _flattenRequested;
         private Harmony _harmony;
 
@@ -47,6 +49,18 @@ namespace Bulldozer
 
         private void Update()
         {
+            if (GameMain.isRunning && !DSPGame.IsMenuDemo && GameMain.localPlanet != null 
+                && GameMain.localPlanet.factory != null 
+                && GameMain.localPlanet.factory.platformSystem != null)
+            {
+                var platformSystem = GameMain.localPlanet.factory.platformSystem;
+                if (_regionPainterPlanet == null || _regionPainterPlanet.factory.platformSystem != platformSystem)
+                {
+                    _regionPainterPlanet = GameMain.localPlanet;
+                    _regionPainter = new RegionPainter(platformSystem);
+                }
+                _regionPainter.DoInitWork();
+            }
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
             var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
             if (HonestLevelerEndState.ENDED_EARLY == result)
@@ -162,6 +176,10 @@ namespace Bulldozer
             }
 
             var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem);
+            if (PluginConfig.enableRegionColor.Value && !foundationUsedUp)
+            {
+                _regionPainter.PaintRegions();
+            }
             if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
             {
                 PaintGuideMarkings(platformSystem);
@@ -548,7 +566,7 @@ namespace Bulldozer
         private bool CheckResearchedTech()
         {
             TechProto requiredTech = null;
-            foreach (TechProto techProto in new List<TechProto>(LDB._techs.dataArray))
+            foreach (TechProto techProto in new List<TechProto>(LDB.techs.dataArray))
             {
                 if (techProto.Name.Contains("宇宙探索") && techProto.Level == 3)
                 {

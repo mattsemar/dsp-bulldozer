@@ -30,7 +30,7 @@ namespace Bulldozer
         private readonly Stopwatch _clearStopWatch = new Stopwatch();
         private readonly PlanetFactory _factory;
         private readonly Player _player;
-        private readonly List<WreckingBallWorkItem> _wreckingBallWork = new List<WreckingBallWorkItem>();
+        private readonly List<WreckingBallWorkItem> _wreckingBallWork = new();
         private ItemDestructionPhase _previousPhase = ItemDestructionPhase.Done;
         private bool _running;
 

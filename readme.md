@@ -17,6 +17,8 @@ Check the "Environment Modification" menu to find the action button
 
 ![Example3](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/example3.png?raw=true)
 
+![Regions](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/regions.png?raw=true)
+
 ## How to install
 
 This mod requires BepInEx to function, download and install it
@@ -35,6 +37,9 @@ Click the `Install with Mod Manager` link above.
 Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful suggestions and bug reports.
 
 ## Changelog
+
+#### v1.0.26
+Added support for configuring separate colors by _region_, where a region is defined by min/max latitude & longitude. Edit regions from config (must enable property and add regions using Edit Regional Colors) 
 
 #### v1.0.25
 

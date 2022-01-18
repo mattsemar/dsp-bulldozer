@@ -18,17 +18,16 @@ namespace Bulldozer
         public static bool NeedReinit;
 
         private static Texture2D _tooltipBg;
-        private static Dictionary<Color, Texture2D> _customColorTextures = new Dictionary<Color, Texture2D>();
+        private static Dictionary<Color, Texture2D> _customColorTextures = new();
 
         private static int _loggedMessageCount = 0;
-        private static Dictionary<string, int> previousSelections = new Dictionary<string, int>();
+        private static Dictionary<string, int> previousSelections = new();
         private static string _savedGUISkin;
         private static GUISkin _savedGUISkinObj;
         private static Color _savedColor;
         private static Color _savedBackgroundColor;
         private static Color _savedContentColor;
         private static GUISkin _mySkin;
-
         public static void OnOpen()
         {
             visible = true;
@@ -42,6 +41,8 @@ namespace Bulldozer
 
         public static void OnGUI()
         {
+            if (RegionColorWindow.visible)
+                RegionColorWindow.OnGUI();
             if (Input.GetKeyDown(KeyCode.Escape))
             {
                 visible = false;
@@ -51,6 +52,7 @@ namespace Bulldozer
             Init();
 
             _windowRect = GUILayout.Window(1297895555, _windowRect, WindowFn, "Bulldozer options");
+
         }
 
         private static void SaveCurrentGuiOptions()
@@ -155,10 +157,17 @@ namespace Bulldozer
                         else
                             DrawCenteredLabel("");
                     }
+                    if (lastSection == "CustomColors" && configDefinition.Section != lastSection)
+                    {
+                        var button = GUILayout.Button("Edit Regional Colors");
+                        if (button)
+                            RegionColorWindow.Toggle();
+                    }
 
-                    lastSection = configDefinition.Section;
 
                     DrawSetting(configEntry);
+
+                    lastSection = configDefinition.Section;
                 }
             }
             GUILayout.EndVertical();
@@ -273,7 +282,7 @@ namespace Bulldozer
             return true;
         }
 
-        private static Color GetColorByIndex(int index)
+        public static Color GetColorByIndex(int index)
         {
             if (index < 0 || index > 31)
             {
@@ -289,7 +298,7 @@ namespace Bulldozer
             return GameMain.mainPlayer.factory.platformSystem.reformCustomColors[index - 16];
         }
 
-        private static Texture2D GetTextureForColor(Color color)
+        public static Texture2D GetTextureForColor(Color color)
         {
             if (_customColorTextures.ContainsKey(color))
             {

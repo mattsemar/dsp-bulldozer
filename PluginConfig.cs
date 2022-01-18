@@ -65,7 +65,9 @@ namespace Bulldozer
         public static ConfigEntry<int> guideLinesMeridianColor;
         public static ConfigEntry<int> guideLinesMinorMeridianColor;
         public static ConfigEntry<int> guideLinesPoleColor;
-
+        
+        public static ConfigEntry<bool> enableRegionColor;
+        public static ConfigEntry<string> regionColors;
 
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
@@ -78,7 +80,6 @@ namespace Bulldozer
         public static ConfigEntry<bool> skipDestroyingStations;
 
         public static ConfigFile PluginConfigFile;
-
 
         public static void InitConfig(ConfigFile configFile)
         {
@@ -123,6 +124,10 @@ namespace Bulldozer
                 new ConfigDescription("Index of color in palette to paint tropic lines", new AcceptableValueRange<int>(0, 31), "color"));
             guideLinesPoleColor = configFile.Bind("CustomColors", "Pole Color", 1,
                 new ConfigDescription("Index of color in palette to paint poles", new AcceptableValueRange<int>(0, 31), "color"));
+
+            enableRegionColor = configFile.Bind("CustomColors", "Enable Region Color", false,
+                "Enable painting colors based on coordinates");
+            regionColors = configFile.Bind("UIOnly", "Region Colors JSON", "", "Not for editing, use UI to define values");
           
             foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool,
                 "Change to have a permanent setting instead of tracking the game's current config");
