@@ -51,7 +51,8 @@ namespace Bulldozer
         {
             if (GameMain.isRunning && !DSPGame.IsMenuDemo && GameMain.localPlanet != null 
                 && GameMain.localPlanet.factory != null 
-                && GameMain.localPlanet.factory.platformSystem != null)
+                && GameMain.localPlanet.factory.platformSystem != null
+                && PluginConfig.enableRegionColor.Value)
             {
                 var platformSystem = GameMain.localPlanet.factory.platformSystem;
                 if (_regionPainterPlanet == null || _regionPainterPlanet.factory.platformSystem != platformSystem)
