@@ -117,6 +117,6 @@ Fixed issue where action button icon was showing in other categories
 More points added to try and catch missed veins in raise/lower on subsequent executions
 
 ## Contact
-Bugs? Contact me on discord: mattersnot#1983 or create an issue in the github repository.
+Bugs? Contact me on discord: Semar#1983 or create an issue in the github repository.
 
 Icons made by [Freepik](https://www.freepik.com)
