@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.27";
+        public const string PluginVersion = "1.0.28";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new();
         private static int _soilToDeduct = 0;
@@ -255,15 +255,16 @@ namespace Bulldozer
                 return;
             }
 
-            for (var id = 0; id < factory.vegePool.Length; ++id)
-            {
-                if (factory.vegePool[id].protoId == 9999)
+            if (PluginConfig.removeVegetation.Value)
+                for (var id = 0; id < factory.vegePool.Length; ++id)
                 {
-                    continue;
-                }
+                    if (factory.vegePool[id].protoId == 9999)
+                    {
+                        continue;
+                    }
 
-                factory.RemoveVegeWithComponents(id);
-            }
+                    factory.RemoveVegeWithComponents(id);
+                }
 
             GameMain.gpuiManager.SyncAllGPUBuffer();
 
@@ -498,6 +499,14 @@ namespace Bulldozer
             else
             {
                 popupMessage += $"\nAdd foundation to all locations on planet";
+                if (PluginConfig.removeVegetation.Value)
+                {
+                    popupMessage += "\r\nRemove all plants trees and rocks".Translate();
+                }
+                else
+                {
+                    popupMessage += "\r\nSkip removing plants trees and rocks".Translate();
+                }
                 if (PluginConfig.alterVeinState.Value)
                 {
                     popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins (slow)".Translate();

@@ -38,6 +38,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.0.28
+Added option to preserve plants trees and rocks on planet 
+
 #### v1.0.27
 Added support for configuring separate colors by _region_, where a region is defined by min/max latitude & longitude. Edit regions from config (must enable property and add regions using Edit Regional Colors) 
 

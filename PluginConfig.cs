@@ -72,6 +72,7 @@ namespace Bulldozer
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
 
+        public static ConfigEntry<bool> removeVegetation;
         public static ConfigEntry<bool> deleteFactoryTrash;
         public static ConfigEntry<bool> disableTechRequirement;
 
@@ -134,6 +135,8 @@ namespace Bulldozer
 
             deleteFactoryTrash = configFile.Bind("Destruction", "DeleteFactoryTrash", false,
                 "Erase all items littered while destroying factory items");
+            removeVegetation = configFile.Bind("Destruction", "RemoveVegetation", true,
+                "Erase vegetation");
             flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
                 "Use this to enable adding foundation while destroying existing factory");
             skipDestroyingStations = configFile.Bind("Destruction", "SkipDestroyingStations", false,
