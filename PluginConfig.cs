@@ -81,6 +81,7 @@ namespace Bulldozer
         // enable normal action of plugin when destroyAssemblers is enabled
         public static ConfigEntry<bool> flattenWithFactoryTearDown;
         public static ConfigEntry<bool> skipDestroyingStations;
+        public static ConfigEntry<bool> featureFastDelete;
 
         public static ConfigFile PluginConfigFile;
 
@@ -152,6 +153,10 @@ namespace Bulldozer
                 "Use this to enable adding foundation while destroying existing factory");
             skipDestroyingStations = configFile.Bind("Destruction", "SkipDestroyingStations", false,
                 "Enable/disable teardown of logistics stations");
+
+            // Config edit only, but just in case it needs to be turned off at some point in the future
+            featureFastDelete = configFile.Bind("Destruction", "Enable Fast Delete", true,
+                new ConfigDescription("Enable Raptor's fast delete for factory teardown", null, "configEditOnly"));
 
             alterVeinState = configFile.Bind("UIOnly", "AlterVeinState", false,
                 new ConfigDescription("Don't edit, use UI checkbox. By default, veins will not be lowered or raised. Enabling takes much longer",
