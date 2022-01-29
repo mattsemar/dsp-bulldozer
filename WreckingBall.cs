@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using HarmonyLib;
+using UnityEngine;
 using static Bulldozer.Log;
 
 namespace Bulldozer
@@ -27,11 +28,16 @@ namespace Bulldozer
     public class WreckingBall
     {
         private static WreckingBall _instance;
-        private readonly Stopwatch _clearStopWatch = new Stopwatch();
+        private readonly Stopwatch _clearStopWatch = new();
         private readonly PlanetFactory _factory;
         private readonly Player _player;
-        private readonly List<WreckingBallWorkItem> _wreckingBallWork = new();
+        private readonly Queue<WreckingBallWorkItem> _wreckingBallWork = new();
+
         private ItemDestructionPhase _previousPhase = ItemDestructionPhase.Done;
+
+        private int _itemsDestroyed;
+        private long _msTakenTotal;
+        private int _updatesRun;
         private bool _running;
 
         private WreckingBall(PlanetFactory factory, Player player)
@@ -68,6 +74,7 @@ namespace Bulldozer
 
         public static void Stop()
         {
+            _instance?.LogRateMessage();
             _instance?._wreckingBallWork.Clear();
             _instance = null;
         }
@@ -76,13 +83,14 @@ namespace Bulldozer
         {
             if (_wreckingBallWork.Count > 0)
             {
-                var countDown = PluginConfig.workItemsPerFrame.Value * 10; // takes less time so we can do more per tick
-                while (countDown-- > 0)
+                WreckingBallWorkItem task = null;
+                try
                 {
-                    if (_wreckingBallWork.Count > 0)
+                    var startTime = DateTime.Now;
+                    int destructionCounter = 0;
+                    while (_wreckingBallWork.Count > 0)
                     {
-                        var task = _wreckingBallWork[0];
-                        _wreckingBallWork.RemoveAt(0);
+                        task = _wreckingBallWork.Dequeue();
                         if (task.Phase != _previousPhase)
                         {
                             LogAndPopupMessage($"Starting phase {task.Phase} {task.ItemId}");
@@ -92,29 +100,71 @@ namespace Bulldozer
                         }
 
                         RemoveBuild(task.ItemId);
+                        destructionCounter++;
+                        if ((DateTime.Now - startTime).TotalMilliseconds > PluginConfig.factoryTeardownRunTimePerFrame.Value)
+                            break;
+                    }
+
+                    _itemsDestroyed += destructionCounter;
+                    _msTakenTotal += (long)(DateTime.Now - startTime).TotalMilliseconds;
+                    _updatesRun++;
+                }
+
+                catch (Exception e)
+                {
+                    Warn($"got exception while removing component. Re-adding task to front of queue {e.Message}");
+                    lock (_wreckingBallWork)
+                    {
+                        _wreckingBallWork.Enqueue(task);
                     }
                 }
+
+                if (Time.frameCount % 60 * 10 * 10 == 0)
+                {
+                    LogRateMessage();
+                }
             }
+
             if (_running && _wreckingBallWork.Count < 1)
             {
                 _clearStopWatch.Stop();
                 var elapsedMs = _clearStopWatch.ElapsedMilliseconds;
-                logger.LogInfo($"wreckingBall {elapsedMs} ms to complete");
+                var tearDownMode = PluginConfig.useActionBuildTearDown.Value ? "actionBuild.DoDismantleObject mode" : "RemoveEntityWithComponents mode";
+                logger.LogInfo($"wreckingBall {elapsedMs} ms to complete in {tearDownMode}, {_updatesRun} frames");
                 LogAndPopupMessage("Done destroying factory");
+                LogRateMessage();
                 _running = false;
             }
         }
 
+        private void LogRateMessage()
+        {
+            var avgDestroyedPerUpdate = _itemsDestroyed / _updatesRun;
+            var avgMSPerUpdate = _msTakenTotal / _updatesRun;
+            var rate = 1000 * _itemsDestroyed / (double)_msTakenTotal;
+            var absoluteRate = 1000 * _itemsDestroyed / (_clearStopWatch.ElapsedMilliseconds);
+            logger.LogInfo(
+                $"(perFrameValue={PluginConfig.factoryTeardownRunTimePerFrame.Value}) Destroyed: {_itemsDestroyed} in {_clearStopWatch.ElapsedMilliseconds / 1000} seconds over {_updatesRun} updates. " +
+                $"Average destroyed per update {avgDestroyedPerUpdate}. Average time per update (aka lag added) {avgMSPerUpdate}. \r\n" +
+                $"Local rate of destruction: {rate} entities / second\r\n" +
+                $"Absolute rate of destruction: {absoluteRate} entities / second");
+        }
+
         private void RemoveBuild(int objId)
         {
-            try
+            if (PluginConfig.useActionBuildTearDown.Value)
             {
                 _player.controller.actionBuild.DoDismantleObject(objId);
+                return;
             }
-            catch (Exception e)
+
+            if (objId > 0)
             {
-                logger.LogError(e.Message);
-                logger.LogError(e.StackTrace);
+                _player.factory.RemoveEntityWithComponents(objId);
+            }
+            else if (objId < 0)
+            {
+                _player.factory.RemovePrebuildWithComponents(-objId);
             }
         }
 
@@ -122,6 +172,9 @@ namespace Bulldozer
         {
             LogAndPopupMessage("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
             _clearStopWatch.Start();
+            _msTakenTotal = 0;
+            _updatesRun = 0;
+            _itemsDestroyed = 0;
             _running = true;
             var phase = ItemDestructionPhase.Inserters;
             if (_factory == null)
@@ -182,9 +235,9 @@ namespace Bulldozer
                             }
 
                             countsByPhase[phase]++;
-                            
+
                             scheduledItemIds.Add(itemId);
-                            _wreckingBallWork.Add(
+                            _wreckingBallWork.Enqueue(
                                 new WreckingBallWorkItem
                                 {
                                     Phase = phase,
@@ -217,7 +270,7 @@ namespace Bulldozer
                     continue;
                 }
 
-                _wreckingBallWork.Add(new WreckingBallWorkItem
+                _wreckingBallWork.Enqueue(new WreckingBallWorkItem
                 {
                     Phase = ItemDestructionPhase.Other,
                     ItemId = -prebuildData.id
@@ -250,6 +303,33 @@ namespace Bulldozer
             }
 
             return true;
+        }
+
+        // patch out that stupid "knock-0" sound that is played when trash is thrown
+        [HarmonyPrefix]
+        [HarmonyPatch(typeof(VFAudio), nameof(VFAudio.Create), new[]
+        {
+            typeof(string),
+            typeof(Transform),
+            typeof(Vector3),
+            typeof(bool),
+            typeof(int),
+            typeof(int),
+            typeof(long)
+        })]
+        public static bool VFAudio_Create_Prefix(string _name)
+        {
+            if (_instance is not { _running: true })
+            {
+                return true;
+            }
+
+            if (!string.Equals(_name, "knock-0"))
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

@@ -46,6 +46,8 @@ namespace Bulldozer
     public class PluginConfig
     {
         public static ConfigEntry<int> workItemsPerFrame;
+        public static ConfigEntry<bool> useActionBuildTearDown;
+        public static ConfigEntry<int> factoryTeardownRunTimePerFrame;
         public static ConfigEntry<OperationMode> soilPileConsumption;
         public static ConfigEntry<OperationMode> foundationConsumption;
 
@@ -92,9 +94,18 @@ namespace Bulldozer
                                       "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
                     new AcceptableValueRange<int>(1, 25), "configEditOnly"));
 
+            useActionBuildTearDown = configFile.Bind("Performance", "UseActionBuildTearDown", true,
+                new ConfigDescription("Method to use for teardown. Disabled causes exceptions sometimes but might run a little faster",
+                                      null, "configEditOnly"));
+            
+            factoryTeardownRunTimePerFrame = configFile.Bind("Performance", "Teardown MS Per Frame", 500,
+                new ConfigDescription("How long in ms to let the teardown task run per update. Note that 1000 ms means your game will be running at 1 UPS, but at 1 UPS the UI should still let you halt the task (click button again)\r\n" +
+                                      "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
+                    new AcceptableValueRange<int>(20, 3000)));
+
             soilPileConsumption = configFile.Bind("Cheatiness", "SoilPileConsumption", OperationMode.FullCheat,
                 "Controls whether bulldozing consumes and or requires available soil pile");
-            foundationConsumption = configFile.Bind("Cheatiness", "FoundationConsumption", OperationMode.FullCheat,
+            foundationConsumption = configFile.Bind("Cheatiness", "FoundationConsumption", OperationMode.Honest,
                 "Controls whether bulldozing consumes and or requires available foundation pile");
             disableTechRequirement = configFile.Bind("Cheatiness", "DisableTechRequirement", false,
                 "Enable/disable tech requirement for using mod");

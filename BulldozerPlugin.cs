@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.28";
+        public const string PluginVersion = "1.0.30";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new();
         private static int _soilToDeduct = 0;
@@ -30,6 +30,7 @@ namespace Bulldozer
         private PlanetData _regionPainterPlanet;
         private bool _flattenRequested;
         private Harmony _harmony;
+        private DebugFactoryData _debugFactoryData;
 
         private UIElements _ui;
 
@@ -49,8 +50,8 @@ namespace Bulldozer
 
         private void Update()
         {
-            if (GameMain.isRunning && !DSPGame.IsMenuDemo && GameMain.localPlanet != null 
-                && GameMain.localPlanet.factory != null 
+            if (GameMain.isRunning && !DSPGame.IsMenuDemo && GameMain.localPlanet != null
+                && GameMain.localPlanet.factory != null
                 && GameMain.localPlanet.factory.platformSystem != null
                 && PluginConfig.enableRegionColor.Value)
             {
@@ -60,8 +61,10 @@ namespace Bulldozer
                     _regionPainterPlanet = GameMain.localPlanet;
                     _regionPainter = new RegionPainter(platformSystem);
                 }
+
                 _regionPainter.DoInitWork();
             }
+
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
             var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
             if (HonestLevelerEndState.ENDED_EARLY == result)
@@ -181,6 +184,7 @@ namespace Bulldozer
             {
                 _regionPainter.PaintRegions();
             }
+
             if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
             {
                 PaintGuideMarkings(platformSystem);
@@ -490,10 +494,26 @@ namespace Bulldozer
                     popupMessage += $"\nDelete all littered factory items (existing litter should not be affected)";
                 }
 
-
                 if (PluginConfig.flattenWithFactoryTearDown.Value)
                 {
-                    popupMessage += $"\nAdd foundation to all locations on planet";
+                    popupMessage += "\nAdd foundation to all locations on planet";
+                }
+                
+                if (localPlanet.factory.entityCount > 10_000 && PluginConfig.factoryTeardownRunTimePerFrame.Value < 750)
+                {
+                    var estimatedRuntime = 2 * localPlanet.factory.entityCount / 180;
+                    popupMessage += "\nNote: With larger factories consider increasing the value of 'Teardown MS Per Frame',\r\n" +
+                                    "          from the config window, it controls how much work the mod will do per game update.\r\n" +
+                                    $"          The machine deletion will take roughly {estimatedRuntime} seconds to complete.";
+                }
+
+                if (!PluginConfig.deleteFactoryTrash.Value && Utils.IsOtherAssemblyLoaded("PersonalLogistics"))
+                {
+                    popupMessage += "\nNote: Personal Logistics is also installed. Be aware that by default\r\n" +
+                                    "          it will try and send littered items to your logistics stations,\r\n" +
+                                    "          make sure you have space available for littered items.\r\n" +
+                                    "          You might also want to set SkipDestroyingStations to true in this mod\r\n" +
+                                    "          to ensure the destroyed items are not sent off planet";
                 }
             }
             else

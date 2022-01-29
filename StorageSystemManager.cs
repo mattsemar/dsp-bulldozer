@@ -1,5 +1,4 @@
 ﻿using System;
-using UnityEngine;
 
 namespace Bulldozer
 {
@@ -115,7 +114,7 @@ namespace Bulldozer
                 var remaining = count - removed;
                 var itemIdRef = itemId;
                 var remainRef = remaining;
-                storageComponent.TakeTailItems(ref itemIdRef, ref remainRef);
+                storageComponent.TakeTailItems(ref itemIdRef, ref remainRef, out _);
                 removed += remainRef;
                 if (removed >= count)
                     return (removed, true);
@@ -135,7 +134,7 @@ namespace Bulldozer
 
                 var itemRef = itemId;
                 var countRef = count - removed;
-                station.TakeItem(ref itemRef, ref countRef);
+                station.TakeItem(ref itemRef, ref countRef, out _);
                 if (countRef > 0)
                 {
                     removed += countRef;
@@ -151,7 +150,7 @@ namespace Bulldozer
         {
             var amountToRemove = count;
             var itemIdRef = itemId;
-            GameMain.mainPlayer.package.TakeTailItems(ref itemIdRef, ref amountToRemove);
+            GameMain.mainPlayer.package.TakeTailItems(ref itemIdRef, ref amountToRemove, out _);
             return amountToRemove == count ? (amountToRemove, true) : (amountToRemove, false);
         }
 
@@ -233,7 +232,7 @@ namespace Bulldozer
 
         private static string GetItemName(int itemId)
         {
-            return LDB._items.Select(itemId).Name.Translate();
+            return LDB.items.Select(itemId).Name.Translate();
         }
     }
 }

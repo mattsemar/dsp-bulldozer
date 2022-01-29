@@ -18,10 +18,6 @@ namespace Bulldozer
         private static int _loggedMessageCount = 0;
         private static string _savedGUISkin;
         private static GUISkin _savedGUISkinObj;
-        private static Color _savedColor;
-        private static Color _savedBackgroundColor;
-        private static Color _savedContentColor;
-        private static GUISkin _mySkin;
         private static RegionalColors _regionalColors = RegionalColors.Instance;
         private static Pager<RegionColorConfig> _pager;
         private static bool lastOverLapCheckFailed;

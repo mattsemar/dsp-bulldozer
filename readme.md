@@ -38,6 +38,12 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.0.30
+Added new setting to control how much time can be spent per update on factory teardown.
+
+#### v1.0.29
+Switch default mode for foundation consumption to Honest. Updated to sync with changes to game code. 
+
 #### v1.0.28
 Added option to preserve plants trees and rocks on planet 
 
