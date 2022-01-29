@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.30";
+        public const string PluginVersion = "1.0.31";
 
         private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new();
         private static int _soilToDeduct = 0;
@@ -499,14 +499,6 @@ namespace Bulldozer
                     popupMessage += "\nAdd foundation to all locations on planet";
                 }
                 
-                if (localPlanet.factory.entityCount > 10_000 && PluginConfig.factoryTeardownRunTimePerFrame.Value < 750)
-                {
-                    var estimatedRuntime = 2 * localPlanet.factory.entityCount / 180;
-                    popupMessage += "\nNote: With larger factories consider increasing the value of 'Teardown MS Per Frame',\r\n" +
-                                    "          from the config window, it controls how much work the mod will do per game update.\r\n" +
-                                    $"          The machine deletion will take roughly {estimatedRuntime} seconds to complete.";
-                }
-
                 if (!PluginConfig.deleteFactoryTrash.Value && Utils.IsOtherAssemblyLoaded("PersonalLogistics"))
                 {
                     popupMessage += "\nNote: Personal Logistics is also installed. Be aware that by default\r\n" +

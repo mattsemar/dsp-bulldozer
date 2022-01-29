@@ -38,6 +38,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.0.31
+Incorporated fast belt delete proposed by Raptor#4825. Factory teardown should be much quicker now.
+
 #### v1.0.30
 Added new setting to control how much time can be spent per update on factory teardown.
 
