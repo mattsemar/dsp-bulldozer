@@ -175,7 +175,8 @@ namespace Bulldozer
             _msTakenTotal = 0;
             _updatesRun = 0;
             _itemsDestroyed = 0;
-            _running = true;
+            if (PluginConfig.featureFastDelete.Value)
+                RaptorFastDelete.Execute();
             var phase = ItemDestructionPhase.Inserters;
             if (_factory == null)
             {
@@ -251,6 +252,7 @@ namespace Bulldozer
             }
 
             AddTasksForBluePrintGhosts(_factory);
+            _running = true;
 
             logger.LogDebug($"added {_wreckingBallWork.Count} items to delete {countsByPhase}");
         }
