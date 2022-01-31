@@ -166,5 +166,12 @@ namespace Bulldozer
             var regionColorConfig = new RegionColorConfig();
             _regionColorConfigs.Add(regionColorConfig);
         }
+
+        public static int RegionCountDefined()
+        {
+            if (Instance == null)
+                return 0;
+            return Instance._regionColorConfigs.Count;
+        }
     }
 }

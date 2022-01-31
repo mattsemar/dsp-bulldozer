@@ -38,6 +38,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.0.32
+Fix factory teardown issue and speedup raising/lowering veins 
+
 #### v1.0.31
 Incorporated fast belt delete proposed by Raptor#4825. Factory teardown should be much quicker now.
 

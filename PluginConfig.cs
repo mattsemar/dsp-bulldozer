@@ -102,7 +102,7 @@ namespace Bulldozer
             factoryTeardownRunTimePerFrame = configFile.Bind("Performance", "Teardown MS Per Frame", 500,
                 new ConfigDescription("How long in ms to let the teardown task run per update. Note that 1000 ms means your game will be running at 1 UPS, but at 1 UPS the UI should still let you halt the task (click button again)\r\n" +
                                       "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
-                    new AcceptableValueRange<int>(20, 3000)));
+                    new AcceptableValueRange<int>(20, 3000), "configEditOnly"));
 
             soilPileConsumption = configFile.Bind("Cheatiness", "SoilPileConsumption", OperationMode.FullCheat,
                 "Controls whether bulldozing consumes and or requires available soil pile");

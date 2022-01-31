@@ -18,9 +18,8 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.31";
+        public const string PluginVersion = "1.0.32";
 
-        private static readonly List<PaveWorkItem> RaiseVeinsWorkList = new();
         private static int _soilToDeduct = 0;
 
         private static Stopwatch clearStopWatch;
@@ -74,7 +73,7 @@ namespace Bulldozer
 
             DoPaveUpdate();
             if (_ui != null && _ui.countText != null)
-                _ui.countText.text = $"{RaiseVeinsWorkList.Count + WreckingBall.RemainingTaskCount() + HonestLeveler.RemainingTaskCount()}";
+                _ui.countText.text = $"{WreckingBall.RemainingTaskCount() + HonestLeveler.RemainingTaskCount()}";
         }
 
 
@@ -82,7 +81,6 @@ namespace Bulldozer
         {
             // For ScriptEngine hot-reloading
             WreckingBall.Stop();
-            RaiseVeinsWorkList?.Clear();
             if (_ui != null)
             {
                 _ui.Unload();
@@ -103,55 +101,7 @@ namespace Bulldozer
 
         private void DoPaveUpdate()
         {
-            if (RaiseVeinsWorkList.Count > 0)
-            {
-                var countDown = Math.Min(Math.Min(RaiseVeinsWorkList.Count, PluginConfig.workItemsPerFrame.Value), 10);
-                while (countDown-- > 0)
-                {
-                    var flattenTask = RaiseVeinsWorkList[0];
-                    RaiseVeinsWorkList.RemoveAt(0);
-
-                    var point = flattenTask.Position;
-                    var planetFactory = flattenTask.Factory;
-                    if (GameMain.mainPlayer?.planetId != planetFactory.planetId)
-                    {
-                        Logger.LogDebug($"player not on planet for work task");
-                        continue;
-                    }
-
-                    var reformTool = flattenTask.Player.controller.actionBuild.reformTool;
-                    bool bury = PluginConfig.buryVeinMode.Value == BuryVeinMode.Tool ? reformTool.buryVeins : PluginConfig.buryVeinMode.Value == BuryVeinMode.Bury;
-
-                    try
-                    {
-                        if (planetFactory.tmp_levelChanges == null)
-                        {
-                            logger.LogDebug($"level changes was null, calling flatten terrain to init");
-                            planetFactory.FlattenTerrain(point, Quaternion.identity,
-                                new Bounds(Vector3.zero, new Vector3(100f, 100f, 100f)), removeVein: reformTool.buryVeins,
-                                lift: true);
-                        }
-
-                        planetFactory.FlattenTerrainReform(point, 0.991f * 10f, 10, bury);
-                    }
-                    catch (Exception e)
-                    {
-                        Logger.LogWarning($"tmp height is null {planetFactory.tmp_levelChanges == null}");
-                        Logger.LogWarning($"exception while paving {e.Message} {e.StackTrace}");
-                    }
-
-                    if (RaiseVeinsWorkList.Count == 0)
-                    {
-                        planetFactory.planet.landPercentDirty = true;
-                    }
-                }
-
-                if (RaiseVeinsWorkList.Count % 100 == 0)
-                {
-                    Logger.LogDebug($"flattened point, {RaiseVeinsWorkList.Count} remain");
-                }
-            }
-            else if (_flattenRequested)
+            if (_flattenRequested)
             {
                 Logger.LogDebug($"repaint requested");
                 SetFlattenRequestedFlag(false);
@@ -226,19 +176,13 @@ namespace Bulldozer
 
         private void InvokePavePlanet()
         {
-            // if (_soilToDeduct > GameMain.mainPlayer.sandCount || PluginConfig.foundationConsumption.Value == OperationMode.Honest)
-            // {
-            //     // have to use the slower method of iterating each area and using ComputeT
-            //     HonestLeveler.Init(GameMain.mainPlayer.factory, GameMain.mainPlayer);
-            // }
-            // else
-            {
-                InvokePavePlanetNoBury();
-            }
-
             if (PluginConfig.alterVeinState.Value)
             {
                 InvokePaveWithVeinAlteration();
+            }
+            else
+            {
+                InvokePavePlanetNoBury();
             }
         }
 
@@ -260,6 +204,7 @@ namespace Bulldozer
             }
 
             if (PluginConfig.removeVegetation.Value)
+            {
                 for (var id = 0; id < factory.vegePool.Length; ++id)
                 {
                     if (factory.vegePool[id].protoId == 9999)
@@ -269,6 +214,11 @@ namespace Bulldozer
 
                     factory.RemoveVegeWithComponents(id);
                 }
+            }
+            else
+            {
+                PlanetAlterer.UpdateVegeHeight(factory);
+            }
 
             GameMain.gpuiManager.SyncAllGPUBuffer();
 
@@ -308,73 +258,10 @@ namespace Bulldozer
             LogAndPopupMessage("Bulldozer done adding foundation");
         }
 
-        // This version is much slower but will pretty reliable raise or lower all veins
         private void InvokePaveWithVeinAlteration()
         {
             LogAndPopupMessage("Altering veins");
-            var mainPlayer = GameMain.mainPlayer;
-            var mainPlayerFactory = mainPlayer.factory;
-            if (mainPlayerFactory == null) return;
-
-            var platformSystem = mainPlayerFactory.platformSystem;
-            if (platformSystem == null) return;
-
-            platformSystem.EnsureReformData();
-            if (platformSystem.reformData == null)
-            {
-                Logger.LogWarning($"no reform data skipping pave");
-                return;
-            }
-
-            var planet = mainPlayerFactory.planet;
-            RaiseVeinsWorkList.Clear();
-            var tmpVeinsAlterWorkList = new List<PaveWorkItem>();
-
-            for (var i = 1; i < mainPlayerFactory.veinCursor; i++)
-            {
-                var vein = mainPlayerFactory.veinPool[i];
-                if (vein.id != i)
-                {
-                    continue;
-                }
-
-                var positions = BuildPositionsToRaiseVeins(vein.pos.normalized * planet.realRadius);
-                foreach (var position in positions)
-                {
-                    tmpVeinsAlterWorkList.Add(
-                        new PaveWorkItem
-                        {
-                            Position = position,
-                            Player = mainPlayer,
-                            Factory = mainPlayerFactory
-                        });
-                }
-            }
-
-
-            tmpVeinsAlterWorkList.Sort((item1, item2) =>
-            {
-                var distance1 = Vector3.Distance(mainPlayer.position, item1.Position);
-                var distance2 = Vector3.Distance(mainPlayer.position, item2.Position);
-                return distance1.CompareTo(distance2);
-            });
-
-            RaiseVeinsWorkList.AddRange(tmpVeinsAlterWorkList);
-            SetFlattenRequestedFlag(true);
-        }
-
-        private Vector3[] BuildPositionsToRaiseVeins(Vector3 centerPosition)
-        {
-            var quaternion = Maths.SphericalRotation(centerPosition, 22.5f);
-            var radius = 0.991f * 10f;
-            return new[]
-            {
-                centerPosition,
-                centerPosition + quaternion * (new Vector3(1f, 0.0f, 1f) * radius),
-                centerPosition + quaternion * (new Vector3(-1f, 0.0f, -1f) * radius),
-                centerPosition + quaternion * (new Vector3(1f, 0.0f, -1f) * radius),
-                centerPosition + quaternion * (new Vector3(-1f, 0.0f, 1f) * radius)
-            };
+            PlanetAlterer.RaiseLowerVeins();
         }
 
         private void SetFlattenRequestedFlag(bool value)
@@ -452,9 +339,8 @@ namespace Bulldozer
                     GameMain.mainPlayer.controller.actionBuild.reformTool._Close();
                 }));
 
-                if (RaiseVeinsWorkList.Count > 0 || WreckingBall.IsRunning() || HonestLeveler.IsRunning())
+                if (WreckingBall.IsRunning() || HonestLeveler.IsRunning())
                 {
-                    RaiseVeinsWorkList.Clear();
                     HonestLeveler.Stop();
                     WreckingBall.Stop();
                     LogAndPopupMessage("Stopping...");
@@ -498,7 +384,7 @@ namespace Bulldozer
                 {
                     popupMessage += "\nAdd foundation to all locations on planet";
                 }
-                
+
                 if (!PluginConfig.deleteFactoryTrash.Value && Utils.IsOtherAssemblyLoaded("PersonalLogistics"))
                 {
                     popupMessage += "\nNote: Personal Logistics is also installed. Be aware that by default\r\n" +
@@ -507,6 +393,10 @@ namespace Bulldozer
                                     "          You might also want to set SkipDestroyingStations to true in this mod\r\n" +
                                     "          to ensure the destroyed items are not sent off planet";
                 }
+            }
+            else if (PluginConfig.alterVeinState.Value)
+            {
+                popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins (no foundation placed)";
             }
             else
             {
@@ -518,11 +408,6 @@ namespace Bulldozer
                 else
                 {
                     popupMessage += "\r\nSkip removing plants trees and rocks".Translate();
-                }
-                if (PluginConfig.alterVeinState.Value)
-                {
-                    popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins (slow)".Translate();
-                    popupMessage += "\nThis action can take a bit to complete (uncheck raise/lower veins option to finish instantly).".Translate();
                 }
 
                 if (PluginConfig.addGuideLines.Value)
@@ -541,6 +426,16 @@ namespace Bulldozer
                     }
 
                     popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
+                }
+
+                if (PluginConfig.enableRegionColor.Value)
+                {
+                    var regionCount = RegionalColors.RegionCountDefined();
+                    popupMessage += $"\nPaint custom colors for {regionCount} regions";
+                }
+                else if (RegionalColors.RegionCountDefined() > 0)
+                {
+                    popupMessage += $"\nSkip painting {RegionalColors.RegionCountDefined()} regions (config option 'Enable Region Color' not set).";
                 }
 
                 if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat || PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)

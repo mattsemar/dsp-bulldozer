@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using BepInEx.Logging;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Bulldozer
@@ -161,12 +162,7 @@ namespace Bulldozer
             rect.anchoredPosition = new Vector2(350, -90);
             drawEquatorCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
             drawEquatorCheckboxButton.HoverText = "Add painted guidelines at various locations (equator, tropics, meridians configurable)";
-            drawEquatorCheckboxButton.onClick += data =>
-            {
-                PluginConfig.addGuideLines.Value = !PluginConfig.addGuideLines.Value;
-                CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
-                _drawEquatorField = PluginConfig.addGuideLines.Value;
-            };
+            drawEquatorCheckboxButton.onClick += OnDrawEquatorCheckClick;
 
             if (countText != null)
             {
@@ -217,7 +213,7 @@ namespace Bulldozer
             rect.pivot = new Vector2(0, 0.5f);
             rect.anchoredPosition = new Vector2(350, -105);
             var repaveCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
-            repaveCheckboxButton.HoverText = "Check to attempt to raise or lower all veins (slow). If unchecked veins will be ignored";
+            repaveCheckboxButton.HoverText = "Check to attempt to raise or lower all veins. No foundation will be placed";
 
             if (countText != null)
             {
@@ -239,14 +235,8 @@ namespace Bulldozer
             gameObjectsToDestroy.Add(AlterVeinsCheckBoxImage.gameObject);
 
             AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
-            repaveCheckboxButton.onClick += data =>
-            {
-                PluginConfig.alterVeinState.Value = !PluginConfig.alterVeinState.Value;
-                AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
-                _alterVeinsField = PluginConfig.alterVeinState.Value;
-            };
+            repaveCheckboxButton.onClick += OnAlterVeinCheckClick;
         }
-
         private void InitDestroyMachinesCheckbox(RectTransform environmentModificationContainer)
         {
             var destroyCheck = new GameObject("DestroyMachines");
@@ -282,12 +272,7 @@ namespace Bulldozer
             gameObjectsToDestroy.Add(DestroyMachinesCheckBoxImage.gameObject);
 
             DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
-            destroyMachinesButton.onClick += data =>
-            {
-                PluginConfig.destroyFactoryAssemblers.Value = !PluginConfig.destroyFactoryAssemblers.Value;
-                DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
-                _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
-            };
+            destroyMachinesButton.onClick += OnDestroyMachinesCheckClick;
         }
 
         private void InitConfigButton(RectTransform environmentModificationContainer)
@@ -433,6 +418,61 @@ namespace Bulldozer
             AlterVeinsCheckBoxImage.gameObject.SetActive(false);
             DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
             ConfigIconImage.gameObject.SetActive(false);
+        }
+
+        private void OnDrawEquatorCheckClick(PointerEventData data)
+        {
+            PluginConfig.addGuideLines.Value = !PluginConfig.addGuideLines.Value;
+            CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
+            _drawEquatorField = PluginConfig.addGuideLines.Value;
+            if (PluginConfig.addGuideLines.Value)
+            {
+                if (PluginConfig.alterVeinState.Value)
+                {
+                    OnAlterVeinCheckClick(data);
+                }
+
+                if (PluginConfig.destroyFactoryAssemblers.Value)
+                {
+                    OnDestroyMachinesCheckClick(data);
+                }
+            }
+        }
+        private void OnAlterVeinCheckClick(PointerEventData obj)
+        {
+            PluginConfig.alterVeinState.Value = !PluginConfig.alterVeinState.Value;
+            AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
+            _alterVeinsField = PluginConfig.alterVeinState.Value;
+            // turn off the other check if this is clicked since it can be confusing
+            if (PluginConfig.alterVeinState.Value)
+            {
+                if (PluginConfig.addGuideLines.Value)
+                {
+                    OnDrawEquatorCheckClick(obj);
+                }
+                if (PluginConfig.destroyFactoryAssemblers.Value)
+                {
+                    OnDestroyMachinesCheckClick(obj);
+                }
+            }
+        }
+        private void OnDestroyMachinesCheckClick(PointerEventData obj)
+        {
+            PluginConfig.destroyFactoryAssemblers.Value = !PluginConfig.destroyFactoryAssemblers.Value;
+            DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
+            _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
+            if (PluginConfig.destroyFactoryAssemblers.Value)
+            {
+                // disable others
+                if (PluginConfig.addGuideLines.Value)
+                {
+                    OnDrawEquatorCheckClick(obj);
+                }
+                if (PluginConfig.alterVeinState.Value)
+                {
+                    OnAlterVeinCheckClick(obj);
+                }
+            }
         }
     }
 

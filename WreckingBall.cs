@@ -139,6 +139,8 @@ namespace Bulldozer
 
         private void LogRateMessage()
         {
+            if (_updatesRun == 0 || _msTakenTotal == 0 || _clearStopWatch.ElapsedMilliseconds < 1)
+                return;
             var avgDestroyedPerUpdate = _itemsDestroyed / _updatesRun;
             var avgMSPerUpdate = _msTakenTotal / _updatesRun;
             var rate = 1000 * _itemsDestroyed / (double)_msTakenTotal;
