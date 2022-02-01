@@ -18,7 +18,8 @@ namespace Bulldozer
             float lastLat = 0, float lastLon = 0);
 
 
-        public static void IterateReform(BuildTool_Reform reformTool, PostComputeReformAction postComputeFn, int maxExecutionMs, float startLat = -89.9f, float startLon = -179.9f)
+        public static void IterateReform(BuildTool_Reform reformTool, PostComputeReformAction postComputeFn, int maxExecutionMs, float startLat = -89.9f, 
+            float startLon = -179.9f)
         {
             var checkedReformIndices = new HashSet<int>();
             var checkedDataPos = new HashSet<int>();
@@ -35,9 +36,11 @@ namespace Bulldozer
             stopwatch.Start();
             for (var lat = startLat; lat < 90; lat += 0.25f)
             {
+                if (PluginConfig.LatitudeOutOfBounds(lat))
+                    continue;
                 for (var lon = -179.9f; lon < 180; lon += 0.25f)
                 {
-                    var position = GuideMarker.LatLonToPosition(lat, 0, reformTool.planet.radius);
+                    var position = GeoUtil.LatLonToPosition(lat, 0, reformTool.planet.radius);
                     position.Normalize();
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
                     if (reformIndexForPosition < 0)
@@ -86,24 +89,32 @@ namespace Bulldozer
             }
         }
 
-        public static int GetNeededFoundation(PlatformSystem platformSystem)
+        public static int GetNeededFoundation(PlatformSystem platformSystem, ReformIndexInfoProvider reformIndexInfoProvider)
         {
             var foundationNeeded = 0;
             for (var index = 0; index < platformSystem.maxReformCount; ++index)
             {
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var latLon = reformIndexInfoProvider.GetForIndex(index);
+                    if (latLon != null && PluginConfig.LatitudeOutOfBounds(latLon.Lat))
+                    {
+                        continue;
+                    }
+                } 
                 foundationNeeded += platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
             }
 
             return foundationNeeded;
         }
 
-        public static (int foundation, int soilPile) CountNeededResources(PlatformSystem platformSystem)
+        public static (int foundation, int soilPile) CountNeededResources(PlatformSystem platformSystem, ReformIndexInfoProvider indexInfoProvider)
         {
             Console.WriteLine($"player current soil pile {GameMain.mainPlayer.sandCount}");
             var platformSystemPlanet = platformSystem?.planet;
             if (platformSystemPlanet == null)
             {
-                logger.LogWarning($"null platform system passed in");
+                logger.LogWarning("null platform system passed in");
                 return (int.MaxValue, int.MaxValue);
             }
 
@@ -112,7 +123,7 @@ namespace Bulldozer
             var neededSoil = 0;
             if (PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
             {
-                neededFoundation = GetNeededFoundation(platformSystem);
+                neededFoundation = GetNeededFoundation(platformSystem, indexInfoProvider);
             }
 
             if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
@@ -125,7 +136,7 @@ namespace Bulldozer
             return (neededFoundation, neededSoil);
         }
 
-        private static int _soilNeeded = 0;
+        private static int _soilNeeded;
 
         public static void SumReform(SnapArgs snapArgs, Vector3 center, float radius, int reformSize, int neededSoilPile, bool timeExpired = false,
             float lastLat = 0, float lastLon = 0)

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.ComponentModel;
 using BepInEx.Configuration;
 
@@ -43,13 +44,15 @@ namespace Bulldozer
         Honest
     }
 
-    public class PluginConfig
+    public static class PluginConfig
     {
         public static ConfigEntry<int> workItemsPerFrame;
         public static ConfigEntry<bool> useActionBuildTearDown;
         public static ConfigEntry<int> factoryTeardownRunTimePerFrame;
         public static ConfigEntry<OperationMode> soilPileConsumption;
         public static ConfigEntry<OperationMode> foundationConsumption;
+        public static ConfigEntry<int> maxLatitude;
+        public static ConfigEntry<int> minLatitude;
 
         // used to make UI checkbox values persistent
         public static ConfigEntry<bool> addGuideLines;
@@ -67,7 +70,7 @@ namespace Bulldozer
         public static ConfigEntry<int> guideLinesMeridianColor;
         public static ConfigEntry<int> guideLinesMinorMeridianColor;
         public static ConfigEntry<int> guideLinesPoleColor;
-        
+
         public static ConfigEntry<bool> enableRegionColor;
         public static ConfigEntry<string> regionColors;
 
@@ -78,8 +81,6 @@ namespace Bulldozer
         public static ConfigEntry<bool> deleteFactoryTrash;
         public static ConfigEntry<bool> disableTechRequirement;
 
-        // enable normal action of plugin when destroyAssemblers is enabled
-        public static ConfigEntry<bool> flattenWithFactoryTearDown;
         public static ConfigEntry<bool> skipDestroyingStations;
         public static ConfigEntry<bool> featureFastDelete;
 
@@ -89,6 +90,16 @@ namespace Bulldozer
         {
             PluginConfigFile = configFile;
 
+            minLatitude = configFile.Bind("Control", "Min Latitude", -90,
+                new ConfigDescription("Minimum latitude to work on. Set equal to Max Latitude to apply to entire planet",
+                    new AcceptableValueRange<int>(-90, 90)));
+
+            maxLatitude = configFile.Bind("Control", "Max Latitude", 90,
+                new ConfigDescription("Max latitude to work on, set min and max to the same value to apply to entire planet",
+                    new AcceptableValueRange<int>(-90, 90)));
+            minLatitude.SettingChanged += OnMinLatitudeChange;
+            maxLatitude.SettingChanged += OnMaxLatitudeChange;
+
 
             workItemsPerFrame = configFile.Bind("Performance", "WorkItemsPerFrame", 1,
                 new ConfigDescription("Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
@@ -97,11 +108,12 @@ namespace Bulldozer
 
             useActionBuildTearDown = configFile.Bind("Performance", "UseActionBuildTearDown", true,
                 new ConfigDescription("Method to use for teardown. Disabled causes exceptions sometimes but might run a little faster",
-                                      null, "configEditOnly"));
-            
+                    null, "configEditOnly"));
+
             factoryTeardownRunTimePerFrame = configFile.Bind("Performance", "Teardown MS Per Frame", 500,
-                new ConfigDescription("How long in ms to let the teardown task run per update. Note that 1000 ms means your game will be running at 1 UPS, but at 1 UPS the UI should still let you halt the task (click button again)\r\n" +
-                                      "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
+                new ConfigDescription(
+                    "How long in ms to let the teardown task run per update. Note that 1000 ms means your game will be running at 1 UPS, but at 1 UPS the UI should still let you halt the task (click button again)\r\n" +
+                    "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
                     new AcceptableValueRange<int>(20, 3000), "configEditOnly"));
 
             soilPileConsumption = configFile.Bind("Cheatiness", "SoilPileConsumption", OperationMode.FullCheat,
@@ -125,7 +137,7 @@ namespace Bulldozer
                 new ConfigDescription(
                     "Paint meridians starting at 0 and incrementing by this value. E.g., a value of 10 would add a meridian line every 10 degrees 18, 36 total. 0 to disable",
                     new AcceptableValueRange<int>(0, 89), "meridians"));
-            
+
             guideLinesEquatorColor = configFile.Bind("CustomColors", "Equator Color", 7,
                 new ConfigDescription("Index of color in palette to paint equator. Default is green", new AcceptableValueRange<int>(0, 31), "color"));
             guideLinesMeridianColor = configFile.Bind("CustomColors", "Meridian Color", 12,
@@ -141,7 +153,7 @@ namespace Bulldozer
             enableRegionColor = configFile.Bind("CustomColors", "Enable Region Color", false,
                 "Enable painting colors based on coordinates");
             regionColors = configFile.Bind("UIOnly", "Region Colors JSON", "", "Not for editing, use UI to define values");
-          
+
             foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool,
                 "Change to have a permanent setting instead of tracking the game's current config");
 
@@ -149,8 +161,6 @@ namespace Bulldozer
                 "Erase all items littered while destroying factory items");
             removeVegetation = configFile.Bind("Destruction", "RemoveVegetation", true,
                 "Erase vegetation");
-            flattenWithFactoryTearDown = configFile.Bind("Destruction", "FlattenWithFactoryTearDown", false,
-                "Use this to enable adding foundation while destroying existing factory");
             skipDestroyingStations = configFile.Bind("Destruction", "SkipDestroyingStations", false,
                 "Enable/disable teardown of logistics stations");
 
@@ -163,9 +173,25 @@ namespace Bulldozer
                     null, "uiEditOnly"));
 
             destroyFactoryAssemblers = configFile.Bind("UIOnly", "DestroyFactoryAssemblers", false,
-                $"Don't edit, use UI checkbox. Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process.");
+                "Don't edit, use UI checkbox. Destroy all factory machines (labs, assemblers, etc). It can be very slow so if you get bored waiting and want to delete stuff yourself, make sure to stop the bulldoze process.");
             addGuideLines = configFile.Bind("UIOnly", "AddGuideLines", true,
                 "Don't edit, this property backs the checkbox in the UI. If enabled painted lines at certain points on planet will be added");
+        }
+
+        private static void OnMaxLatitudeChange(object sender, EventArgs e)
+        {
+            if (sender is ConfigEntry<int> entry && minLatitude.Value > entry.Value)
+            {
+                minLatitude.Value = maxLatitude.Value;
+            }
+        }
+
+        private static void OnMinLatitudeChange(object sender, EventArgs e)
+        {
+            if (sender is ConfigEntry<int> entry && maxLatitude.Value < entry.Value)
+            {
+                maxLatitude.Value = entry.Value;
+            }
         }
 
         public static string GetCurrentVeinsRaiseState()
@@ -198,6 +224,50 @@ namespace Bulldozer
 
                 configEntry.BoxedValue = configEntry.DefaultValue;
             }
+        }
+
+        public static bool LatitudeOutOfBounds(float latInDegrees)
+        {
+            if (!IsLatConstrained())
+                return false;
+            return maxLatitude.Value <= latInDegrees || minLatitude.Value >= latInDegrees;
+        }
+
+        public static bool IsLatConstrained()
+        {
+            if (maxLatitude.Value == minLatitude.Value)
+                return false;
+            return maxLatitude.Value != 90 || minLatitude.Value != -90;
+        }
+
+        public static string GetLatRangeString()
+        {
+            // $"{Degrees}° {Minutes}' {Direction}";
+            var minlat = minLatitude.Value;
+            var latDir = "° N";
+            if (minlat < 0)
+            {
+                minlat = -minlat;
+                latDir = "° S";
+            }
+            else if (minlat == 0)
+            {
+                latDir = "° ";
+            }
+
+            var maxlat = maxLatitude.Value;
+            var maxLatDir = "° N";
+            if (maxlat < 0)
+            {
+                maxlat = -maxlat;
+                maxLatDir = "° S";
+            }
+            else if (maxlat == 0)
+            {
+                maxLatDir = "° ";
+            }
+
+            return $"{minlat}{latDir} - {maxlat}{maxLatDir}";
         }
     }
 }

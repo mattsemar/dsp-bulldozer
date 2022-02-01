@@ -61,7 +61,7 @@ namespace Bulldozer
             {
                 if (_instance._factory != factory)
                 {
-                    logger.LogWarning($"Factory has changed since task start. Halting");
+                    logger.LogWarning("Factory has changed since task start. Halting");
                     Stop();
                     return;
                 }
@@ -174,15 +174,17 @@ namespace Bulldozer
         {
             LogAndPopupMessage("Bulldozing factory belts, inserters, assemblers, labs, stations, you name it");
             _clearStopWatch.Start();
+            _running = true;
             _msTakenTotal = 0;
             _updatesRun = 0;
             _itemsDestroyed = 0;
-            if (PluginConfig.featureFastDelete.Value)
+            if (PluginConfig.featureFastDelete.Value && !PluginConfig.IsLatConstrained())
                 RaptorFastDelete.Execute();
             var phase = ItemDestructionPhase.Inserters;
             if (_factory == null)
             {
-                logger.LogDebug($"no current factory found");
+                logger.LogDebug("no current factory found");
+                _running = false;
                 return;
             }
 
@@ -194,6 +196,8 @@ namespace Bulldozer
             {
                 if (_factory.entityPool[i].protoId > 0)
                 {
+                    if (EntityOutOfLatRange(i, _factory))
+                        continue;
                     itemIdsToProcess.Add(i);
                 }
             }
@@ -254,7 +258,6 @@ namespace Bulldozer
             }
 
             AddTasksForBluePrintGhosts(_factory);
-            _running = true;
 
             logger.LogDebug($"added {_wreckingBallWork.Count} items to delete {countsByPhase}");
         }
@@ -288,7 +291,7 @@ namespace Bulldozer
             }
             else
             {
-                logger.LogDebug($"no ghosts found");
+                logger.LogDebug("no ghosts found");
             }
         }
 
@@ -311,16 +314,7 @@ namespace Bulldozer
 
         // patch out that stupid "knock-0" sound that is played when trash is thrown
         [HarmonyPrefix]
-        [HarmonyPatch(typeof(VFAudio), nameof(VFAudio.Create), new[]
-        {
-            typeof(string),
-            typeof(Transform),
-            typeof(Vector3),
-            typeof(bool),
-            typeof(int),
-            typeof(int),
-            typeof(long)
-        })]
+        [HarmonyPatch(typeof(VFAudio), nameof(VFAudio.Create), typeof(string), typeof(Transform), typeof(Vector3), typeof(bool), typeof(int), typeof(int), typeof(long))]
         public static bool VFAudio_Create_Prefix(string _name)
         {
             if (_instance is not { _running: true })
@@ -331,6 +325,18 @@ namespace Bulldozer
             if (!string.Equals(_name, "knock-0"))
             {
                 return true;
+            }
+
+            return false;
+        }
+
+        public static bool EntityOutOfLatRange(int entityId, PlanetFactory factory)
+        {
+            if (PluginConfig.IsLatConstrained())
+            {
+                var lat = GeoUtil.GetLatitudeDegForPosition(factory.entityPool[entityId].pos);
+                if (PluginConfig.LatitudeOutOfBounds(lat))
+                    return true;
             }
 
             return false;

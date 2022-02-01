@@ -15,14 +15,14 @@ namespace Bulldozer
             platformSystem.EnsureReformData();
             if (platformSystem.reformData == null)
             {
-                Log.logger.LogWarning($"no reform data skipping pave");
+                Log.logger.LogWarning("no reform data skipping pave");
                 return;
             }
 
             var planetData = factory.planet;
             PlanetPhysics physics = planetData.physics;
             float raiseAmount = 50f;
-            
+
             var reformTool = GameMain.mainPlayer.controller.actionBuild.reformTool;
             bool bury = PluginConfig.buryVeinMode.Value == BuryVeinMode.Tool ? reformTool.buryVeins : PluginConfig.buryVeinMode.Value == BuryVeinMode.Bury;
 
@@ -31,17 +31,23 @@ namespace Bulldozer
             for (int veinIndex = 1; veinIndex < factory.veinCursor; ++veinIndex)
             {
                 Vector3 pos = veinPool[veinIndex].pos;
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var latDegrees = GeoUtil.GetLatitudeDegForPosition(pos);
+                    if (PluginConfig.LatitudeOutOfBounds(latDegrees))
+                        continue;
+                }
+
                 int colliderId = veinPool[veinIndex].colliderId;
                 ColliderData colliderData = physics.GetColliderData(colliderId);
-                float num4 = newVeinHeight;
-                Vector3 vector3 = colliderData.pos.normalized * (num4 + 0.4f);
+                Vector3 veinTopPosition = colliderData.pos.normalized * (newVeinHeight + 0.4f);
                 int index1 = colliderId >> 20;
                 // 2 ^ 20 - 1 = 0b11111111111111111111
                 int index2 = colliderId & (0b11111111111111111111);
-                physics.colChunks[index1].colliderPool[index2].pos = vector3;
-                veinPool[veinIndex].pos = pos.normalized * num4;
-                physics.SetPlanetPhysicsColliderDirty();
+                physics.colChunks[index1].colliderPool[index2].pos = veinTopPosition;
+                veinPool[veinIndex].pos = pos.normalized * newVeinHeight;
                 GameMain.gpuiManager.AlterModel(veinPool[veinIndex].modelIndex, veinPool[veinIndex].modelId, veinIndex, veinPool[veinIndex].pos, false);
+                physics.SetPlanetPhysicsColliderDirty();
             }
 
             GameMain.gpuiManager.SyncAllGPUBuffer();
@@ -58,9 +64,17 @@ namespace Bulldozer
             for (int objId = 1; objId < vegeCursor; ++objId)
             {
                 Vector3 pos = vegePool[objId].pos;
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var latDegrees = GeoUtil.GetLatitudeDegForPosition(pos);
+                    if (PluginConfig.LatitudeOutOfBounds(latDegrees))
+                        continue;
+                }
+
                 vegePool[objId].pos = pos.normalized * vegeHeight;
-                GameMain.gpuiManager.AlterModel((int)vegePool[objId].modelIndex, vegePool[objId].modelId, objId, vegePool[objId].pos, vegePool[objId].rot, false);
+                GameMain.gpuiManager.AlterModel(vegePool[objId].modelIndex, vegePool[objId].modelId, objId, vegePool[objId].pos, vegePool[objId].rot, false);
             }
+
             GameMain.gpuiManager.SyncAllGPUBuffer();
         }
     }

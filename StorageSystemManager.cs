@@ -164,7 +164,7 @@ namespace Bulldozer
         {
             if (_player?.package == null)
             {
-                Log.logger.LogWarning($"player not set");
+                Log.logger.LogWarning("player not set");
                 return ("Failure while counting items", count);
             }
             var playerItemCount = _player.package.GetItemCount(itemId);

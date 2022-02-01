@@ -143,7 +143,6 @@ namespace Bulldozer
                 }
 
                 TakeBackItemsOptimized();
-                var loggedIsBelt = false;
                 for (int i = 1; i < cargoTraffic.beltCursor; i++)
                 {
                     ref var belt = ref beltPool[i];
@@ -151,14 +150,8 @@ namespace Bulldozer
 
                     if (entityId == 0)
                         continue;
-                    
-                    // record the belt in the take back data 
                     var entityData = factory.entityPool[belt.entityId];
-                    if (!loggedIsBelt)
-                    {
-                        loggedIsBelt = true;
-                        Debug($"taking back another belt. current count is {takeBackCount[entityData.protoId]}");
-                    }
+                    // record the belt in the take back data 
                     takeBackCount[entityData.protoId]++;
 
                     // factory.RemoveEntityWithComponents(entityId);

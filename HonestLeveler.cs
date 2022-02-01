@@ -52,7 +52,7 @@ namespace Bulldozer
             {
                 if (_instance._factory != factory)
                 {
-                    logger.LogWarning($"Factory has changed since task start. Halting");
+                    logger.LogWarning("Factory has changed since task start. Halting");
                     Stop();
                     return HonestLevelerEndState.ENDED_ERROR;
                 }
@@ -99,7 +99,8 @@ namespace Bulldozer
 
                 return HonestLevelerEndState.IN_PROGRESS;
             }
-            else if (_running)
+
+            if (_running)
             {
                 _clearStopWatch.Stop();
                 var elapsedMs = _clearStopWatch.ElapsedMilliseconds;
@@ -127,7 +128,7 @@ namespace Bulldozer
                 var flattenTerrainReform = _factory.ComputeFlattenTerrainReform(snapArgs.points, center, radius, cursorPointCount);
                 if (flattenTerrainReform > _player.sandCount)
                 {
-                    LogAndPopupMessage($"Ending task, not enough soil pile");
+                    LogAndPopupMessage("Ending task, not enough soil pile");
                     return HonestLevelerEndState.ENDED_EARLY;
                 }
 
@@ -151,7 +152,7 @@ namespace Bulldozer
             _running = true;
             if (_factory == null)
             {
-                logger.LogDebug($"no current factory found");
+                logger.LogDebug("no current factory found");
                 return;
             }
 
@@ -176,7 +177,7 @@ namespace Bulldozer
             {
                 for (var lon = -180f; lon < 180; lon += 0.25f)
                 {
-                    var position = GuideMarker.LatLonToPosition(lat, 0, _factory.planet.radius);
+                    var position = GeoUtil.LatLonToPosition(lat, 0, _factory.planet.radius);
                     position.Normalize();
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
 

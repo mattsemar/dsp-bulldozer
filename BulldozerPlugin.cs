@@ -18,14 +18,15 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.0.32";
+        public const string PluginVersion = "1.1.0";
 
-        private static int _soilToDeduct = 0;
+        private static int _soilToDeduct;
 
         private static Stopwatch clearStopWatch;
 
         public static BulldozerPlugin instance;
         private RegionPainter _regionPainter;
+        private ReformIndexInfoProvider _reformIndexInfoProvider;
         private PlanetData _regionPainterPlanet;
         private bool _flattenRequested;
         private Harmony _harmony;
@@ -51,24 +52,27 @@ namespace Bulldozer
         {
             if (GameMain.isRunning && !DSPGame.IsMenuDemo && GameMain.localPlanet != null
                 && GameMain.localPlanet.factory != null
-                && GameMain.localPlanet.factory.platformSystem != null
-                && PluginConfig.enableRegionColor.Value)
+                && GameMain.localPlanet.factory.platformSystem != null)
             {
                 var platformSystem = GameMain.localPlanet.factory.platformSystem;
-                if (_regionPainterPlanet == null || _regionPainterPlanet.factory.platformSystem != platformSystem)
+                if (_reformIndexInfoProvider == null || _reformIndexInfoProvider.PlanetId != GameMain.localPlanet.id)
                 {
-                    _regionPainterPlanet = GameMain.localPlanet;
-                    _regionPainter = new RegionPainter(platformSystem);
+                    _reformIndexInfoProvider = new ReformIndexInfoProvider(platformSystem);
                 }
 
-                _regionPainter.DoInitWork();
+                if (_regionPainter == null)
+                {
+                    _regionPainter = new RegionPainter(platformSystem, _reformIndexInfoProvider);
+                }
+
+                _reformIndexInfoProvider.DoInitWork(GameMain.localPlanet);
             }
 
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
             var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
             if (HonestLevelerEndState.ENDED_EARLY == result)
             {
-                logger.LogInfo($"ran out of soil pile");
+                logger.LogInfo("ran out of soil pile");
             }
 
             DoPaveUpdate();
@@ -103,7 +107,7 @@ namespace Bulldozer
         {
             if (_flattenRequested)
             {
-                Logger.LogDebug($"repaint requested");
+                Logger.LogDebug("repaint requested");
                 SetFlattenRequestedFlag(false);
                 try
                 {
@@ -115,7 +119,7 @@ namespace Bulldozer
                 catch (Exception e)
                 {
                     Logger.LogWarning($"exception painting {e}");
-                    LogAndPopupMessage($"Failure while painting. Check logs");
+                    LogAndPopupMessage("Failure while painting. Check logs");
                 }
             }
         }
@@ -129,7 +133,7 @@ namespace Bulldozer
                 return;
             }
 
-            var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem);
+            var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem, _reformIndexInfoProvider);
             if (PluginConfig.enableRegionColor.Value && !foundationUsedUp)
             {
                 _regionPainter.PaintRegions();
@@ -199,7 +203,7 @@ namespace Bulldozer
 
             if (GameMain.localPlanet == null || GameMain.localPlanet.type == EPlanetType.Gas)
             {
-                LogAndPopupMessage($"Bulldozer doesn't work on gas giants");
+                LogAndPopupMessage("Bulldozer doesn't work on gas giants");
                 return;
             }
 
@@ -212,6 +216,13 @@ namespace Bulldozer
                         continue;
                     }
 
+                    if (PluginConfig.IsLatConstrained())
+                    {
+                        var lat = GeoUtil.GetLatitudeDegForPosition(factory.vegePool[id].pos);
+                        if (PluginConfig.LatitudeOutOfBounds(lat))
+                            continue;
+                    }
+
                     factory.RemoveVegeWithComponents(id);
                 }
             }
@@ -222,15 +233,45 @@ namespace Bulldozer
 
             GameMain.gpuiManager.SyncAllGPUBuffer();
 
+            int levelCount = 0;
+            int firstLatLeveled = -1;
+            int firstLongLeveled = -1;
+            int firstIndex = -1;
             for (var index = 0; index < GameMain.localPlanet.modData.Length << 1; ++index)
             {
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var latLonForModIndex = _reformIndexInfoProvider.GetForModIndex(index);
+                    if (latLonForModIndex == null)
+                    {
+                        LogNTimes("No coord mapped to data index for {0}", 15, index);
+                        continue;
+                    }
+
+                    if (PluginConfig.LatitudeOutOfBounds(latLonForModIndex.Lat))
+                    {
+                        continue;
+                    }
+
+                    if (firstLatLeveled < 0)
+                    {
+                        firstLatLeveled = latLonForModIndex.Lat;
+                        firstLongLeveled = latLonForModIndex.Long;
+                        firstIndex = index;
+                    }
+                }
+
+                levelCount++;
                 GameMain.localPlanet.AddHeightMapModLevel(index, 3);
             }
+
+            Debug(
+                $"leveled {levelCount} points for {PluginConfig.minLatitude.Value} {PluginConfig.maxLatitude.Value}. First ({firstLatLeveled}, {firstLongLeveled}) ndx: {firstIndex}");
 
             var outOfSoilPile = false;
             if (_soilToDeduct != 0 && PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
             {
-                // currently we don't have an easy way to see how much soil pile that would've been deducted
+                // currently we don't have an easy way to see how much soil pile would've been deducted
                 outOfSoilPile = GameMain.mainPlayer.sandCount - _soilToDeduct <= 0;
                 GameMain.mainPlayer.SetSandCount(Math.Max(GameMain.mainPlayer.sandCount - _soilToDeduct, 0));
                 _soilToDeduct = 0;
@@ -252,7 +293,7 @@ namespace Bulldozer
             }
             else
             {
-                LogAndPopupMessage($"not adding foundation failed to level everything");
+                LogAndPopupMessage("not adding foundation failed to level everything");
             }
 
             LogAndPopupMessage("Bulldozer done adding foundation");
@@ -350,7 +391,7 @@ namespace Bulldozer
                 {
                     var popupMessage = ConstructPopupMessage(GameMain.localPlanet);
                     UIMessageBox.Show("Bulldoze planet", popupMessage.Translate(),
-                        "Ok", "Cancel", 0, InvokePluginCommands, () => { LogAndPopupMessage($"Canceled"); });
+                        "Ok", "Cancel", 0, InvokePluginCommands, () => { LogAndPopupMessage("Canceled"); });
                 }
             });
 
@@ -364,11 +405,25 @@ namespace Bulldozer
                 return "No local planet to bulldoze found.";
             }
 
-            var popupMessage = $"Please confirm that you would like to do the following: ";
+            var popupMessage = "Please confirm the following actions: ";
+            if (PluginConfig.IsLatConstrained())
+            {
+                popupMessage += $"\r\n\t[For Selected Latitude Range {PluginConfig.GetLatRangeString()}]";
+            }
+
             if (PluginConfig.destroyFactoryAssemblers.Value)
             {
                 var machinesMsg = PluginConfig.skipDestroyingStations.Value ? "(assemblers, belts, but not stations)" : "(assemblers, belts, stations, etc)";
-                popupMessage += $"\nDestroy all factory components {machinesMsg}";
+                if (PluginConfig.IsLatConstrained())
+                {
+                    popupMessage += $"\nDestroy factory machines {machinesMsg}";
+                    popupMessage += "\nNote: this can be much slower than tearing down the entire factory";
+                }
+                else
+                {
+                    popupMessage += $"\nDestroy all factory machines {machinesMsg}";
+                }
+
                 var countBuildGhosts = WreckingBall.CountBuildGhosts(GameMain.mainPlayer.factory);
                 if (countBuildGhosts > 0)
                 {
@@ -377,33 +432,43 @@ namespace Bulldozer
 
                 if (PluginConfig.deleteFactoryTrash.Value)
                 {
-                    popupMessage += $"\nDelete all littered factory items (existing litter should not be affected)";
-                }
-
-                if (PluginConfig.flattenWithFactoryTearDown.Value)
-                {
-                    popupMessage += "\nAdd foundation to all locations on planet";
+                    popupMessage += "\nDelete all littered factory items (existing litter should not be affected)";
                 }
 
                 if (!PluginConfig.deleteFactoryTrash.Value && Utils.IsOtherAssemblyLoaded("PersonalLogistics"))
                 {
                     popupMessage += "\nNote: Personal Logistics is also installed. Be aware that by default\r\n" +
-                                    "          it will try and send littered items to your logistics stations,\r\n" +
-                                    "          make sure you have space available for littered items.\r\n" +
-                                    "          You might also want to set SkipDestroyingStations to true in this mod\r\n" +
-                                    "          to ensure the destroyed items are not sent off planet";
+                                    "          it will try and send littered items to your logistics stations.\r\n";
                 }
             }
             else if (PluginConfig.alterVeinState.Value)
             {
-                popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins (no foundation placed)";
+                if (PluginConfig.IsLatConstrained())
+                {
+                    popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} veins in Selected Latitudes";
+                }
+                else
+                {
+                    popupMessage += $"\nAttempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins on planet.";
+                }
             }
             else
             {
-                popupMessage += $"\nAdd foundation to all locations on planet";
+                if (PluginConfig.IsLatConstrained())
+                {
+                    popupMessage += "\nAdd foundation to locations in Selected Latitudes";
+                }
+                else
+                {
+                    popupMessage += "\nAdd foundation to all locations on planet";
+                }
+
                 if (PluginConfig.removeVegetation.Value)
                 {
-                    popupMessage += "\r\nRemove all plants trees and rocks".Translate();
+                    if (PluginConfig.IsLatConstrained())
+                        popupMessage += "\r\nRemove all plants trees and rocks in the Selected Latitudes";
+                    else
+                        popupMessage += "\r\nRemove all plants trees and rocks";
                 }
                 else
                 {
@@ -426,6 +491,10 @@ namespace Bulldozer
                     }
 
                     popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
+                    if (PluginConfig.IsLatConstrained())
+                    {
+                        popupMessage += "\n\tNote that guide marks outside of Selected Latitudes will not be applied.";
+                    }
                 }
 
                 if (PluginConfig.enableRegionColor.Value)
@@ -440,7 +509,7 @@ namespace Bulldozer
 
                 if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat || PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
                 {
-                    var (foundationNeeded, soilPile) = GridExplorer.CountNeededResources(GameMain.localPlanet.factory.platformSystem);
+                    var (foundationNeeded, soilPile) = GridExplorer.CountNeededResources(GameMain.localPlanet.factory.platformSystem, _reformIndexInfoProvider);
                     if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat && soilPile != 0)
                     {
                         var verb = soilPile < 0 ? "Gain" : "Consume";
@@ -450,11 +519,11 @@ namespace Bulldozer
                             if (PluginConfig.soilPileConsumption.Value == OperationMode.Honest)
                             {
                                 popupMessage +=
-                                    $". Be aware that this process will halt after your soil pile is consumed.";
+                                    ". Be aware that this process will halt after your soil pile is consumed.";
                             }
                             else
                             {
-                                popupMessage += $". All of your soil pile will be consumed but the process will continue.";
+                                popupMessage += ". All of your soil pile will be consumed but the process will continue.";
                             }
                         }
 
@@ -493,7 +562,7 @@ namespace Bulldozer
 
             if (requiredTech == null)
             {
-                logger.LogWarning($"did not find universe exploration tech item, assuming unlocked");
+                logger.LogWarning("did not find universe exploration tech item, assuming unlocked");
                 return true;
             }
 
@@ -527,10 +596,6 @@ namespace Bulldozer
                 if (PluginConfig.destroyFactoryAssemblers.Value)
                 {
                     WreckingBall.Init(GameMain.mainPlayer.factory, GameMain.mainPlayer);
-                    if (PluginConfig.flattenWithFactoryTearDown.Value)
-                    {
-                        InvokePavePlanet();
-                    }
                 }
                 else
                 {
