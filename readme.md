@@ -41,6 +41,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.1.1
+Update: Lowered the rate that pre-calculations are when the planet is first loaded (for the UPS)    
+
 #### v1.1.0
 Feature: Selected Latitudes let you limit the bulldozed areas. Works for veins, foundation, factory teardown.   
 

@@ -4,38 +4,37 @@ using UnityEngine;
 
 namespace Bulldozer
 {
-    public class LatLon : IEquatable<LatLon>
+    public readonly struct LatLon : IEquatable<LatLon>
     {
-        private int lat;
-        private int lng;
+        private readonly int _lat;
+        private readonly int _lng;
 
-        public int Lat
+        public int Lat => _lat;
+
+        public int Long => _lng;
+        public static LatLon Empty => new (-1000, -1000);
+
+        private static readonly Dictionary<int, Dictionary<int, LatLon>> PoolLatToLonToInstance = new();
+
+        private LatLon(int lat, int lng)
         {
-            get => lat;
-            set => lat = value;
+            _lat = lat;
+            _lng = lng;
         }
-
-        public int Long
-        {
-            get => lng;
-            set => lng = value;
-        }
-
-        private static Dictionary<int, Dictionary<int, LatLon>> _poolLatToLonToInstance = new();
 
         public static LatLon FromCoords(double lat, double lon)
         {
             int newLat = lat < 0 ? Mathf.CeilToInt((float)lat) : Mathf.FloorToInt((float)lat);
             int newLon = lon < 0 ? Mathf.CeilToInt((float)lon) : Mathf.FloorToInt((float)lon);
-            if (!_poolLatToLonToInstance.TryGetValue(newLat, out var lonLookup))
+            if (!PoolLatToLonToInstance.TryGetValue(newLat, out var lonLookup))
             {
                 lonLookup = new Dictionary<int, LatLon>();
-                _poolLatToLonToInstance[newLat] = lonLookup;
+                PoolLatToLonToInstance[newLat] = lonLookup;
             }
 
             if (!lonLookup.TryGetValue(newLon, out var inst))
             {
-                lonLookup[newLon] = inst = new LatLon { lat = newLat, lng = newLon };
+                lonLookup[newLon] = inst = new LatLon(lat: newLat, lng: newLon);
             }
 
             return inst;
@@ -43,17 +42,7 @@ namespace Bulldozer
 
         public bool Equals(LatLon other)
         {
-            if (ReferenceEquals(null, other))
-            {
-                return false;
-            }
-
-            if (ReferenceEquals(this, other))
-            {
-                return true;
-            }
-
-            return lat == other.lat && lng == other.lng;
+            return _lat == other._lat && _lng == other._lng;
         }
 
         public override bool Equals(object obj)
@@ -61,11 +50,6 @@ namespace Bulldozer
             if (ReferenceEquals(null, obj))
             {
                 return false;
-            }
-
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
             }
 
             if (obj.GetType() != GetType())
@@ -80,8 +64,13 @@ namespace Bulldozer
         {
             unchecked
             {
-                return (lat * 397) ^ lng;
+                return (_lat * 397) ^ _lng;
             }
+        }
+
+        public bool IsEmpty()
+        {
+            return _lat == Empty._lat && _lng == Empty._lng;
         }
     }
 }

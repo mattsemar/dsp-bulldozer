@@ -15,6 +15,7 @@ namespace Bulldozer
         private PlatformSystem platformSystem;
         private bool _lookupsCreated;
         private float _minLatLookupWorkItem = -90f;
+        private int _initUpdateCounter;
         private int _planetId;
 
         public ReformIndexInfoProvider(PlatformSystem platformSystem)
@@ -34,6 +35,7 @@ namespace Bulldozer
             _planetId = planetId;
             this.platformSystem = platformSystem;
             _minLatLookupWorkItem = -90f;
+            _initUpdateCounter = 0;
         }
 
         public void PlanetChanged(PlanetData planetData)
@@ -59,7 +61,7 @@ namespace Bulldozer
         {
             if (!_lookupsCreated)
             {
-                return null;
+                return LatLon.Empty;
             }
 
             _llLookup.TryGetValue(index, out var result);
@@ -70,7 +72,7 @@ namespace Bulldozer
         {
             if (!_lookupsCreated)
             {
-                return null;
+                return LatLon.Empty;
             }
 
             _llModLookup.TryGetValue(index, out var result);
@@ -97,17 +99,18 @@ namespace Bulldozer
                 return;
             }
 
-            int posCounter = 0;
+            _initUpdateCounter++;
             var endLat = Math.Min(_minLatLookupWorkItem + LatitudesPerPass, 90);
             var planetRawData = platformSystem.planet.data;
+            var start = DateTime.Now;
+            var maxRuntimeMS = GetMaxRuntimeMS();
             for (var lat = _minLatLookupWorkItem; lat < endLat; lat += 0.2f)
             {
                 for (var longi = -180f; longi < 180; longi += 0.2f)
                 {
-                    posCounter++;
-                    var pos = GeoUtil.LatLonToPosition(_minLatLookupWorkItem, longi, platformSystem.planet.realRadius);
+                    var pos = GeoUtil.LatLonToPosition(lat, longi, platformSystem.planet.realRadius);
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(pos);
-                    LatLon latLon = LatLon.FromCoords(_minLatLookupWorkItem, longi);
+                    LatLon latLon = LatLon.FromCoords(lat, longi);
                     if (reformIndexForPosition > -1)
                     {
                         _llLookup[reformIndexForPosition] = latLon;
@@ -115,11 +118,13 @@ namespace Bulldozer
 
                     var currentDataIndex = planetRawData.QueryIndex(pos);
                     _llModLookup[currentDataIndex] = latLon;
-
-                    // _llModLookup[modIndex] = latLon;
                 }
 
                 _minLatLookupWorkItem = lat;
+                if ((DateTime.Now - start).TotalMilliseconds > maxRuntimeMS)
+                {
+                    break;
+                }
             }
 
             if (_minLatLookupWorkItem >= 89)
@@ -128,7 +133,21 @@ namespace Bulldozer
             }
 
             if (_lookupsCreated)
-                Debug($"found positions for {_llLookup.Count} indices. Looked at {posCounter} positions on last pass {_lookupsCreated} {Initted}");
+            {
+                var maxRef = platformSystem.maxReformCount;
+                var maxRaw = planetRawData.dataLength;
+                Debug($"Completed position computations for {_llLookup.Count}/{maxRef}, {_llModLookup.Count}/{maxRaw} indices. Updates required: {_initUpdateCounter}");
+            }
+        }
+
+        private static int GetMaxRuntimeMS()
+        {
+            if (!PluginConfig.IsLatConstrained())
+            {
+                return Math.Min(10, PluginConfig.maxInitMsPerFrame.Value);
+            }
+
+            return PluginConfig.maxInitMsPerFrame.Value;
         }
     }
 }

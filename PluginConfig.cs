@@ -47,6 +47,7 @@ namespace Bulldozer
     public static class PluginConfig
     {
         public static ConfigEntry<int> workItemsPerFrame;
+        public static ConfigEntry<int> maxInitMsPerFrame;
         public static ConfigEntry<bool> useActionBuildTearDown;
         public static ConfigEntry<int> factoryTeardownRunTimePerFrame;
         public static ConfigEntry<OperationMode> soilPileConsumption;
@@ -105,6 +106,10 @@ namespace Bulldozer
                 new ConfigDescription("Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
                                       "Larger values might make the job complete more quickly, but will also slow your system down noticeably",
                     new AcceptableValueRange<int>(1, 25), "configEditOnly"));
+            
+            maxInitMsPerFrame = configFile.Bind("Performance", "MaxInitMsPerFrame", 50,
+                new ConfigDescription("How long to let init run per frame",
+                    new AcceptableValueRange<int>(5, 250), "configEditOnly"));
 
             useActionBuildTearDown = configFile.Bind("Performance", "UseActionBuildTearDown", true,
                 new ConfigDescription("Method to use for teardown. Disabled causes exceptions sometimes but might run a little faster",

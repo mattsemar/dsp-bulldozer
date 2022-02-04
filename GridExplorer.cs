@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Diagnostics;
 using UnityEngine;
 using static Bulldozer.Log;
@@ -31,7 +30,6 @@ namespace Bulldozer
 
             int cursorPointCount;
             var radius = 0.990946f * 10;
-            var neededSoilPile = 0;
             var stopwatch = new Stopwatch();
             stopwatch.Start();
             for (var lat = startLat; lat < 90; lat += 0.25f)
@@ -57,7 +55,6 @@ namespace Bulldozer
                     }
 
                     var snapArgs = new SnapArgs();
-                    Vector3 outpos;
                     cursorPointCount = reformTool.planet.aux.ReformSnap(position, 10, 1, 1, snapArgs.points, snapArgs.indices, platformSystem,
                         out var center);
                     var queryIndex = reformTool.planet.data.QueryIndex(center);
@@ -75,7 +72,6 @@ namespace Bulldozer
                     var flattenTerrainReform = reformTool.factory.ComputeFlattenTerrainReform(snapArgs.points, center, radius, cursorPointCount);
                     postComputeFn?.Invoke(snapArgs, center, radius, 10, flattenTerrainReform);
 
-                    neededSoilPile += flattenTerrainReform;
                     if (stopwatch.ElapsedMilliseconds > maxExecutionMs)
                     {
                         LogAndPopupMessage($"cancel after running ${stopwatch.ElapsedMilliseconds} lat={lat} / lon={lon}");
@@ -97,7 +93,7 @@ namespace Bulldozer
                 if (PluginConfig.IsLatConstrained())
                 {
                     var latLon = reformIndexInfoProvider.GetForIndex(index);
-                    if (latLon != null && PluginConfig.LatitudeOutOfBounds(latLon.Lat))
+                    if (!latLon.IsEmpty()  && PluginConfig.LatitudeOutOfBounds(latLon.Lat))
                     {
                         continue;
                     }
@@ -110,7 +106,7 @@ namespace Bulldozer
 
         public static (int foundation, int soilPile) CountNeededResources(PlatformSystem platformSystem, ReformIndexInfoProvider indexInfoProvider)
         {
-            Console.WriteLine($"player current soil pile {GameMain.mainPlayer.sandCount}");
+            logger.LogInfo($"player current soil pile {GameMain.mainPlayer.sandCount}");
             var platformSystemPlanet = platformSystem?.planet;
             if (platformSystemPlanet == null)
             {

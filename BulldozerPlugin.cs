@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.1.0";
+        public const string PluginVersion = "1.1.1";
 
         private static int _soilToDeduct;
 
@@ -68,6 +68,10 @@ namespace Bulldozer
                 _reformIndexInfoProvider.DoInitWork(GameMain.localPlanet);
             }
 
+            if (_ui != null && _ui.IsShowing())
+            {
+                _ui.ReadyForAction = _reformIndexInfoProvider.Initted || !PluginConfig.IsLatConstrained();
+            }
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
             var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
             if (HonestLevelerEndState.ENDED_EARLY == result)
@@ -242,7 +246,7 @@ namespace Bulldozer
                 if (PluginConfig.IsLatConstrained())
                 {
                     var latLonForModIndex = _reformIndexInfoProvider.GetForModIndex(index);
-                    if (latLonForModIndex == null)
+                    if (latLonForModIndex.Equals(LatLon.Empty))
                     {
                         LogNTimes("No coord mapped to data index for {0}", 15, index);
                         continue;
@@ -356,6 +360,8 @@ namespace Bulldozer
             else
             {
                 instance._ui.TechUnlockedState = instance.CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
+                if (instance._reformIndexInfoProvider != null && instance._ui != null)
+                    instance._ui.ReadyForAction = instance._reformIndexInfoProvider.Initted || !PluginConfig.IsLatConstrained();
                 instance._ui.Show();
             }
         }
@@ -390,12 +396,14 @@ namespace Bulldozer
                 else
                 {
                     var popupMessage = ConstructPopupMessage(GameMain.localPlanet);
-                    UIMessageBox.Show("Bulldoze planet", popupMessage.Translate(),
+                    var boxTitle = PluginConfig.IsLatConstrained() ? "Bulldoze selected latitudes" : "Bulldoze planet";
+                    UIMessageBox.Show(boxTitle, popupMessage.Translate(),
                         "Ok", "Cancel", 0, InvokePluginCommands, () => { LogAndPopupMessage("Canceled"); });
                 }
             });
 
             _ui.TechUnlockedState = CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
+            _ui.ReadyForAction = !PluginConfig.IsLatConstrained() || _reformIndexInfoProvider is { Initted: true };
         }
 
         private string ConstructPopupMessage(PlanetData localPlanet)

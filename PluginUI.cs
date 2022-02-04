@@ -46,6 +46,7 @@ namespace Bulldozer
         private GameObject _newSeparator;
 
         private bool _techUnlocked;
+        private bool _readyToGo;
         [NonSerialized] public Image AlterVeinsCheckBoxImage;
         [NonSerialized] public Image CheckBoxImage;
         [NonSerialized] public Image ConfigIconImage;
@@ -68,6 +69,24 @@ namespace Bulldozer
                 }
                 else
                 {
+                    mainActionButton.button.interactable = true;
+                    mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
+                }
+            }
+        }  
+        public bool ReadyForAction
+        {
+            set
+            {
+                _readyToGo = value;
+                if (_techUnlocked && !_readyToGo)
+                {
+                    mainActionButton.button.interactable = false;
+                    mainActionButton.tips.tipText = "Initting...";
+                }
+                else if (_readyToGo && _techUnlocked)
+                {
+
                     mainActionButton.button.interactable = true;
                     mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 }
@@ -439,6 +458,13 @@ namespace Bulldozer
             AlterVeinsCheckBoxImage.gameObject.SetActive(false);
             DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
             ConfigIconImage.gameObject.SetActive(false);
+        }
+
+        public bool IsShowing()
+        {
+            if (BulldozeButton == null || BulldozeButton.gameObject == false)
+                return false;
+            return BulldozeButton.gameObject.activeSelf;
         }
 
         private void OnDrawEquatorCheckClick(PointerEventData data)
