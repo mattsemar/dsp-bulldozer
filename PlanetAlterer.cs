@@ -15,7 +15,7 @@ namespace Bulldozer
             platformSystem.EnsureReformData();
             if (platformSystem.reformData == null)
             {
-                Log.logger.LogWarning($"no reform data skipping pave");
+                Log.logger.LogWarning("no reform data skipping pave");
                 return;
             }
 
@@ -31,6 +31,13 @@ namespace Bulldozer
             for (int veinIndex = 1; veinIndex < factory.veinCursor; ++veinIndex)
             {
                 Vector3 pos = veinPool[veinIndex].pos;
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var latDegrees = GeoUtil.GetLatitudeDegForPosition(pos);
+                    if (PluginConfig.LatitudeOutOfBounds(latDegrees))
+                        continue;
+                }
+
                 int colliderId = veinPool[veinIndex].colliderId;
                 ColliderData colliderData = physics.GetColliderData(colliderId);
                 Vector3 veinTopPosition = colliderData.pos.normalized * (newVeinHeight + 0.4f);
@@ -57,6 +64,13 @@ namespace Bulldozer
             for (int objId = 1; objId < vegeCursor; ++objId)
             {
                 Vector3 pos = vegePool[objId].pos;
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var latDegrees = GeoUtil.GetLatitudeDegForPosition(pos);
+                    if (PluginConfig.LatitudeOutOfBounds(latDegrees))
+                        continue;
+                }
+
                 vegePool[objId].pos = pos.normalized * vegeHeight;
                 GameMain.gpuiManager.AlterModel(vegePool[objId].modelIndex, vegePool[objId].modelId, objId, vegePool[objId].pos, vegePool[objId].rot, false);
             }

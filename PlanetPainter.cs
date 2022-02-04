@@ -1,13 +1,11 @@
-﻿using UnityEngine;
-using static Bulldozer.Log;
+﻿using static Bulldozer.Log;
 using static PlatformSystem;
 
 namespace Bulldozer
 {
     public static class PlanetPainter
     {
-
-        public static bool PaintPlanet(PlatformSystem platformSystem)
+        public static bool PaintPlanet(PlatformSystem platformSystem, ReformIndexInfoProvider reformInfoProvider)
         {
             var maxReformCount = platformSystem.maxReformCount;
             var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
@@ -44,18 +42,25 @@ namespace Bulldozer
             var outOfFoundationMessageShown = false;
             for (var index = 0; index < maxReformCount; ++index)
             {
+                
+                if (PluginConfig.IsLatConstrained())
+                {
+                    var forIndex = reformInfoProvider.GetForIndex(index);
+                    if (PluginConfig.LatitudeOutOfBounds(forIndex.Lat))
+                        continue;
+                }
+                
                 var foundationNeeded = platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
                 if (foundationNeeded > 0 && PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
                 {
                     consumedFoundation += foundationNeeded;
-                    var reformId = REFORM_ID;
-                    var (itemsRemoved, successful) = StorageSystemManager.RemoveItems(REFORM_ID, foundationNeeded);
+                    var (_, successful) = StorageSystemManager.RemoveItems(REFORM_ID, foundationNeeded);
 
                     if (!successful)
                     {
                         if (PluginConfig.foundationConsumption.Value == OperationMode.Honest)
                         {
-                            LogAndPopupMessage($"Out of foundation, halting.");
+                            LogAndPopupMessage("Out of foundation, halting.");
                             foundationUsedUp = true;
                             break;
                         }
@@ -63,7 +68,7 @@ namespace Bulldozer
                         if (!outOfFoundationMessageShown)
                         {
                             outOfFoundationMessageShown = true;
-                            LogAndPopupMessage($"All foundation used, continuing");
+                            LogAndPopupMessage("All foundation used, continuing");
                         }
                     }
                 }
@@ -74,17 +79,6 @@ namespace Bulldozer
 
             GameMain.mainPlayer.mecha.AddConsumptionStat(REFORM_ID, consumedFoundation, GameMain.mainPlayer.nearestFactory);
             return foundationUsedUp;
-        }
-
-        public static Vector3 LatLonToPosition(float lat, float lon, float earthRadius)
-        {
-            var latRad = Mathf.PI / 180 * lat;
-            var lonRad = Mathf.PI / 180 * lon;
-            var y = Mathf.Sin(latRad);
-            var num5 = Mathf.Cos(latRad);
-            var num6 = Mathf.Sin(lonRad);
-            var num7 = Mathf.Cos(lonRad);
-            return new Vector3(num5 * num6, y, num5 * -num7).normalized * earthRadius;
         }
     }
 }

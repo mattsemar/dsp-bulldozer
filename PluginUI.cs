@@ -12,13 +12,19 @@ namespace Bulldozer
         private const string DEFAULT_TIP_MESSAGE_PT1 =
             "Adds foundation to entire planet. Any existing foundation decoration will be lost.\n";
 
+        private const string DEFAULT_TIP_MESSAGE_LAT_PT1 =
+            "Adds foundation to all locations in selected latitude range.\n";
+
         private const string DEFAULT_TIP_MESSAGE_VEINS_NO_ALTER = "Veins will not be raised or lowered";
 
         private const string DEFAULT_TIP_MESSAGE_DESTROY_FACTORY =
-            "Destroy all factory machines.\nGame may lag a bit after invocation. Press again to halt.";
+            "Destroy all factory machines";
+
+        private const string DEFAULT_TIP_MESSAGE_DESTROY_FACTORY_IN_LAT =
+            "Destroy all factory machines in selected latitude range";
 
         public static ManualLogSource logger;
-        private static List<GameObject> gameObjectsToDestroy = new List<GameObject>();
+        private static List<GameObject> gameObjectsToDestroy = new();
 
         public GameObject DrawEquatorCheck;
         public Sprite spriteChecked;
@@ -30,16 +36,17 @@ namespace Bulldozer
         public Text buttonHotkeyTextComponent;
         public Transform CountTransform;
         public CheckboxControl drawEquatorCheckboxButton;
-        private bool _alterVeinsField = false;
+        private bool _alterVeinsField;
         private Transform _bulldozeIcon;
-        private bool _destroyFactoryMachines = false;
+        private bool _destroyFactoryMachines;
 
         // use to track whether checkbox needs to be synced
         private bool _drawEquatorField = true;
         private Image _iconImage;
         private GameObject _newSeparator;
 
-        private bool _techUnlocked = false;
+        private bool _techUnlocked;
+        private bool _readyToGo;
         [NonSerialized] public Image AlterVeinsCheckBoxImage;
         [NonSerialized] public Image CheckBoxImage;
         [NonSerialized] public Image ConfigIconImage;
@@ -62,6 +69,24 @@ namespace Bulldozer
                 }
                 else
                 {
+                    mainActionButton.button.interactable = true;
+                    mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
+                }
+            }
+        }  
+        public bool ReadyForAction
+        {
+            set
+            {
+                _readyToGo = value;
+                if (_techUnlocked && !_readyToGo)
+                {
+                    mainActionButton.button.interactable = false;
+                    mainActionButton.tips.tipText = "Initting...";
+                }
+                else if (_readyToGo && _techUnlocked)
+                {
+
                     mainActionButton.button.interactable = true;
                     mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 }
@@ -101,7 +126,14 @@ namespace Bulldozer
                 if (mainActionButton != null && currentTipMessageIsDefault)
                 {
                     currentTipMessageIsDefault = false;
-                    mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY;
+                    if (PluginConfig.IsLatConstrained())
+                    {
+                        mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY_IN_LAT;   
+                    }
+                    else
+                    {
+                        mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY;
+                    }
                 }
             }
             else if (mainActionButton != null && !currentTipMessageIsDefault)
@@ -114,8 +146,16 @@ namespace Bulldozer
         private string ConstructTipMessageDependentOnConfig()
         {
             var veinsAlterMessage = $"Will attempt to {PluginConfig.GetCurrentVeinsRaiseState()} all veins for planet.";
+            if (PluginConfig.IsLatConstrained())
+            {
+                veinsAlterMessage = $"Will attempt to {PluginConfig.GetCurrentVeinsRaiseState()} veins in selected latitude range ({PluginConfig.GetLatRangeString()})";
+            }
             var part2 = PluginConfig.alterVeinState.Value ? veinsAlterMessage : DEFAULT_TIP_MESSAGE_VEINS_NO_ALTER;
             currentTipMessageIsDefault = !PluginConfig.alterVeinState.Value;
+            if (PluginConfig.IsLatConstrained())
+            {
+                return DEFAULT_TIP_MESSAGE_LAT_PT1 + part2;    
+            }
             return DEFAULT_TIP_MESSAGE_PT1 + part2;
         }
 
@@ -250,7 +290,7 @@ namespace Bulldozer
             rect.pivot = new Vector2(0, 0.5f);
             rect.anchoredPosition = new Vector2(350, -120);
             var destroyMachinesButton = rect.gameObject.AddComponent<CheckboxControl>();
-            destroyMachinesButton.HoverText = "Clear all factory machines. Skip adding foundation. Edit property FlattenWithFactoryTearDown to do both";
+            destroyMachinesButton.HoverText = "Clear all factory machines. Skip adding foundation.";
 
             if (countText != null)
             {
@@ -418,6 +458,13 @@ namespace Bulldozer
             AlterVeinsCheckBoxImage.gameObject.SetActive(false);
             DestroyMachinesCheckBoxImage.gameObject.SetActive(false);
             ConfigIconImage.gameObject.SetActive(false);
+        }
+
+        public bool IsShowing()
+        {
+            if (BulldozeButton == null || BulldozeButton.gameObject == false)
+                return false;
+            return BulldozeButton.gameObject.activeSelf;
         }
 
         private void OnDrawEquatorCheckClick(PointerEventData data)

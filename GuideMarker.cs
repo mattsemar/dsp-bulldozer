@@ -85,7 +85,7 @@ namespace Bulldozer
             {
                 for (var latOffset = -1; latOffset < 1; latOffset++)
                 {
-                    var position = LatLonToPosition(0f + latOffset * coordLineOffset, lon,
+                    var position = GeoUtil.LatLonToPosition(0f + latOffset * coordLineOffset, lon,
                         platformSystem.planet.radius);
 
                     var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
@@ -131,6 +131,8 @@ namespace Bulldozer
                 : GetTropicLatitudes(platformSystem);
             for (var lat = -90.0f; lat < 90; lat += coordLineOffset)
             {
+                if (PluginConfig.LatitudeOutOfBounds(lat))
+                    continue;
                 for (var meridianOffset = 0; meridianOffset < 4; meridianOffset++)
                 {
                     var lonOffsetMin = -1;
@@ -161,7 +163,7 @@ namespace Bulldozer
                     for (var lonOffset = lonOffsetMin; lonOffset < lonOffsetMax; lonOffset++)
                     {
                         var lon = coordLineOffset * lonOffset + meridianOffset * 90f;
-                        var position = LatLonToPosition(lat, lon, planetRadius);
+                        var position = GeoUtil.LatLonToPosition(lat, lon, planetRadius);
 
                         var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
                         indexesToPaint.Add(reformIndexForPosition);
@@ -203,6 +205,9 @@ namespace Bulldozer
             {
                 if (Math.Abs(lat) > Math.Abs(tropicLatitudes[3]))
                     continue;
+                if (PluginConfig.LatitudeOutOfBounds(lat))
+                    continue;
+
                 for (var meridianOffset = -180; meridianOffset < 180; meridianOffset += interval)
                 {
                     var lonOffsetMin = -1;
@@ -213,7 +218,7 @@ namespace Bulldozer
                     for (var lonOffset = lonOffsetMin; lonOffset < lonOffsetMax; lonOffset++)
                     {
                         var lon = coordLineOffset * lonOffset + meridianOffset;
-                        var position = LatLonToPosition(lat, lon, planetRadius);
+                        var position = GeoUtil.LatLonToPosition(lat, lon, planetRadius);
 
                         var reformIndexForPosition = platformSystem.GetReformIndexForPosition(position);
 
@@ -252,11 +257,13 @@ namespace Bulldozer
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
             foreach (var latInDegrees in latitudes)
             {
+                if (PluginConfig.LatitudeOutOfBounds(latInDegrees))
+                    continue;
                 foreach (var sign in signs)
                 {
                     for (var lon = -179.9f; lon < 180; lon += coordLineOffset)
                     {
-                        var position = LatLonToPosition(latInDegrees * sign, lon, platformSystem.planet.radius);
+                        var position = GeoUtil.LatLonToPosition(latInDegrees * sign, lon, platformSystem.planet.radius);
 
                         var reformIndexForSegment = platformSystem.GetReformIndexForPosition(position);
                         if (reformIndexForSegment >= 0)
@@ -286,9 +293,12 @@ namespace Bulldozer
             {
                 if (Math.Abs(lat) <= Math.Abs(tropicLatitudes[0]) + coordLineOffset)
                     continue;
+                if (PluginConfig.LatitudeOutOfBounds(lat))
+                    continue;
+
                 for (var lon = -179.9f; lon < 180; lon += coordLineOffset)
                 {
-                    var position = LatLonToPosition(lat, lon, platformSystem.planet.radius);
+                    var position = GeoUtil.LatLonToPosition(lat, lon, platformSystem.planet.radius);
 
                     var reformIndexForSegment = platformSystem.GetReformIndexForPosition(position);
                     if (reformIndexForSegment >= 0)
@@ -313,7 +323,7 @@ namespace Bulldozer
             var coordLineOffset = GetCoordLineOffset(platformSystem.planet);
             for (var lat = -89.9f; lat < 90; lat += coordLineOffset)
             {
-                var position = LatLonToPosition(lat, 0, platformSystem.planet.radius);
+                var position = GeoUtil.LatLonToPosition(lat, 0, platformSystem.planet.radius);
                 position.Normalize();
 
                 double latitude = Mathf.Asin(position.y);
@@ -363,17 +373,6 @@ namespace Bulldozer
             }
 
             indexes.AddRange(tempNewIndexes);
-        }
-
-        public static Vector3 LatLonToPosition(float lat, float lon, float earthRadius)
-        {
-            var latRad = Mathf.PI / 180 * lat;
-            var lonRad = Mathf.PI / 180 * lon;
-            var y = Mathf.Sin(latRad);
-            var num5 = Mathf.Cos(latRad);
-            var num6 = Mathf.Sin(lonRad);
-            var num7 = Mathf.Cos(lonRad);
-            return new Vector3(num5 * num6, y, num5 * -num7).normalized * earthRadius;
         }
     }
 }

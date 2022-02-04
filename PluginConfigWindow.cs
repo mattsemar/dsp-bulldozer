@@ -154,8 +154,8 @@ namespace Bulldozer
                         // DrawCenteredLabel(configDefinition.Section);
                         if (configDefinition.Section == "CustomColors")
                             DrawCenteredLabel("0-15 are built in colors, 16-31 are user defined");
-                        else
-                            DrawCenteredLabel("");
+                        // else
+                        //     DrawCenteredLabel("");
                     }
                     if (lastSection == "CustomColors" && configDefinition.Section != lastSection)
                     {
@@ -239,11 +239,13 @@ namespace Bulldozer
         private static bool DrawRangeField(ConfigEntryBase configEntry)
         {
             bool addColorIndicator = configEntry.Description.Tags.Contains("color");
-            if (configEntry.Description.AcceptableValues.GetType() != typeof(AcceptableValueRange<int>))
+            if (configEntry.Description.AcceptableValues is not AcceptableValueRange<int> acceptableValueRange)
+            {
                 return false;
+            }
 
             GUILayout.BeginHorizontal();
-            AcceptableValueRange<int> acceptableValues = (AcceptableValueRange<int>)configEntry.Description.AcceptableValues;
+            AcceptableValueRange<int> acceptableValues = acceptableValueRange;
             var converted = (float)Convert.ToDouble(configEntry.BoxedValue, CultureInfo.InvariantCulture);
             var leftValue = (float)Convert.ToDouble(acceptableValues.MinValue, CultureInfo.InvariantCulture);
             var rightValue = (float)Convert.ToDouble(acceptableValues.MaxValue, CultureInfo.InvariantCulture);
@@ -329,7 +331,7 @@ namespace Bulldozer
         {
             if (!enumType.IsEnum)
             {
-                Debug.LogWarning($"picker must only be used with enums");
+                Debug.LogWarning("picker must only be used with enums");
                 return false;
             }
 

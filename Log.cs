@@ -1,4 +1,5 @@
-﻿using BepInEx.Logging;
+﻿using System.Collections.Generic;
+using BepInEx.Logging;
 
 namespace Bulldozer
 {
@@ -22,5 +23,16 @@ namespace Bulldozer
             logger.LogWarning(message);
         }
 
+        private static Dictionary<string, int> _logCount = new ();
+        public static void LogNTimes(string msg, int maxTimes,  params object[] args)
+        {
+            if (!_logCount.ContainsKey(msg) || maxTimes < 0)
+                _logCount[msg] = 0;
+            else if (_logCount[msg] > maxTimes)
+                return;
+    
+            _logCount[msg]++;
+            Debug(string.Format(msg, args));
+        }
     }
 }

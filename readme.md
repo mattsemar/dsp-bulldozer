@@ -19,6 +19,9 @@ Check the "Environment Modification" menu to find the action button
 
 ![Regions](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/regions.png?raw=true)
 
+Now supports limiting the Bulldozed area by latitude range.
+![Limit Area](https://github.com/mattsemar/dsp-bulldozer/blob/master/Examples/preservation.png?raw=true)
+
 ## How to install
 
 This mod requires BepInEx to function, download and install it
@@ -37,6 +40,15 @@ Click the `Install with Mod Manager` link above.
 Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful suggestions and bug reports.
 
 ## Changelog
+
+#### v1.1.2
+Bugfix: fix issue with regional painting where reform index latitude calculations have not been done yet (thanks, Tobias Pottgüter)    
+
+#### v1.1.1
+Update: Lowered the rate that pre-calculations are when the planet is first loaded (for the UPS)    
+
+#### v1.1.0
+Feature: Selected Latitudes let you limit the bulldozed areas. Works for veins, foundation, factory teardown.   
 
 #### v1.0.32
 Fix factory teardown issue and speedup raising/lowering veins 
