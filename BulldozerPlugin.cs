@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.1.1";
+        public const string PluginVersion = "1.1.2";
 
         private static int _soilToDeduct;
 
@@ -70,8 +70,16 @@ namespace Bulldozer
 
             if (_ui != null && _ui.IsShowing())
             {
-                _ui.ReadyForAction = _reformIndexInfoProvider.Initted || !PluginConfig.IsLatConstrained();
+                if (PluginConfig.enableRegionColor.Value || PluginConfig.IsLatConstrained())
+                {
+                    _ui.ReadyForAction = _reformIndexInfoProvider is { Initted: true };
+                }
+                else
+                {
+                    _ui.ReadyForAction = true;
+                }
             }
+
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
             var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
             if (HonestLevelerEndState.ENDED_EARLY == result)
@@ -403,7 +411,14 @@ namespace Bulldozer
             });
 
             _ui.TechUnlockedState = CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
-            _ui.ReadyForAction = !PluginConfig.IsLatConstrained() || _reformIndexInfoProvider is { Initted: true };
+            if (PluginConfig.enableRegionColor.Value || PluginConfig.IsLatConstrained())
+            {
+                _ui.ReadyForAction = _reformIndexInfoProvider is { Initted: true };
+            }
+            else
+            {
+                _ui.ReadyForAction = true;
+            }
         }
 
         private string ConstructPopupMessage(PlanetData localPlanet)

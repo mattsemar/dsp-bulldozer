@@ -142,7 +142,7 @@ namespace Bulldozer
 
         private static int GetMaxRuntimeMS()
         {
-            if (!PluginConfig.IsLatConstrained())
+            if (!PluginConfig.IsLatConstrained() && !PluginConfig.enableRegionColor.Value)
             {
                 return Math.Min(10, PluginConfig.maxInitMsPerFrame.Value);
             }
