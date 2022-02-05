@@ -4,12 +4,10 @@ namespace Bulldozer
 {
     public class RegionPainter
     {
-        private readonly PlatformSystem platformSystem;
         private readonly ReformIndexInfoProvider _reformIndexInfoProvider;
 
         public RegionPainter(PlatformSystem platformSystem, ReformIndexInfoProvider reformIndexInfoProvider)
         {
-            this.platformSystem = platformSystem;
             _reformIndexInfoProvider = reformIndexInfoProvider;
         }
 
@@ -19,6 +17,13 @@ namespace Bulldozer
                 return;
             if (RegionalColors.Instance.Count == 0)
                 return;
+            if (!_reformIndexInfoProvider.Initted)
+            {
+                Warn("Can't paint regions, index provider is not initted");
+                return;
+            }
+
+            var platformSystem = _reformIndexInfoProvider.platformSystem;
 
             var actionBuild = GameMain.mainPlayer?.controller.actionBuild;
             if (actionBuild == null)

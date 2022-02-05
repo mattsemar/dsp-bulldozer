@@ -41,6 +41,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.1.3
+Bugfix: fix issue with regional painting after switching to a new planet (thanks, Tobias Pottgüter)    
+
 #### v1.1.2
 Bugfix: fix issue with regional painting where reform index latitude calculations have not been done yet (thanks, Tobias Pottgüter)    
 

@@ -18,7 +18,7 @@ namespace Bulldozer
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
         public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.1.2";
+        public const string PluginVersion = "1.1.3";
 
         private static int _soilToDeduct;
 
@@ -50,23 +50,27 @@ namespace Bulldozer
 
         private void Update()
         {
-            if (GameMain.isRunning && !DSPGame.IsMenuDemo && GameMain.localPlanet != null
-                && GameMain.localPlanet.factory != null
-                && GameMain.localPlanet.factory.platformSystem != null)
+            if (!GameMain.isRunning 
+                || DSPGame.IsMenuDemo 
+                || GameMain.localPlanet == null 
+                || GameMain.localPlanet.factory == null 
+                || GameMain.localPlanet.factory.platformSystem == null)
             {
-                var platformSystem = GameMain.localPlanet.factory.platformSystem;
-                if (_reformIndexInfoProvider == null || _reformIndexInfoProvider.PlanetId != GameMain.localPlanet.id)
-                {
-                    _reformIndexInfoProvider = new ReformIndexInfoProvider(platformSystem);
-                }
-
-                if (_regionPainter == null)
-                {
-                    _regionPainter = new RegionPainter(platformSystem, _reformIndexInfoProvider);
-                }
-
-                _reformIndexInfoProvider.DoInitWork(GameMain.localPlanet);
+                return;
             }
+
+            var platformSystem = GameMain.localPlanet.factory.platformSystem;
+            if (_reformIndexInfoProvider == null)
+            {
+                _reformIndexInfoProvider = new ReformIndexInfoProvider(platformSystem);
+            }
+
+            if (_regionPainter == null)
+            {
+                _regionPainter = new RegionPainter(platformSystem, _reformIndexInfoProvider);
+            }
+
+            _reformIndexInfoProvider.DoInitWork(GameMain.localPlanet);
 
             if (_ui != null && _ui.IsShowing())
             {

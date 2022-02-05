@@ -10,9 +10,9 @@ namespace Bulldozer
     public class ReformIndexInfoProvider
     {
         private const int LatitudesPerPass = 4;
-        private ConcurrentDictionary<int, LatLon> _llLookup = new();
-        private ConcurrentDictionary<int, LatLon> _llModLookup = new();
-        private PlatformSystem platformSystem;
+        private readonly ConcurrentDictionary<int, LatLon> _llLookup = new();
+        private readonly ConcurrentDictionary<int, LatLon> _llModLookup = new();
+        public PlatformSystem platformSystem;
         private bool _lookupsCreated;
         private float _minLatLookupWorkItem = -90f;
         private int _initUpdateCounter;
@@ -27,18 +27,18 @@ namespace Bulldozer
         public int PlanetId => _planetId;
         public bool Initted => _lookupsCreated;
 
-        private void SetInitValues(PlatformSystem platformSystem, int planetId)
+        private void SetInitValues(PlatformSystem newPlatformSystem, int planetId)
         {
             _llLookup.Clear();
             _llModLookup.Clear();
             _lookupsCreated = false;
             _planetId = planetId;
-            this.platformSystem = platformSystem;
+            platformSystem = newPlatformSystem;
             _minLatLookupWorkItem = -90f;
             _initUpdateCounter = 0;
         }
 
-        public void PlanetChanged(PlanetData planetData)
+        private void PlanetChanged(PlanetData planetData)
         {
             if (planetData == null)
             {
@@ -46,14 +46,8 @@ namespace Bulldozer
             }
             else
             {
-                if (_planetId != platformSystem.planet.id)
-                {
-                    SetInitValues(planetData.factory?.platformSystem, planetData.id);
-                }
-                else
-                {
-                    Debug("planet did not actually change");
-                }
+                Debug("Index provider detected planet changed");
+                SetInitValues(planetData.factory?.platformSystem, planetData.id);
             }
         }
 
