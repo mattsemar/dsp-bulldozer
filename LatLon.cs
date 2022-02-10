@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 
 namespace Bulldozer
@@ -9,23 +10,42 @@ namespace Bulldozer
         private readonly int _lat;
         private readonly int _lng;
 
-        public int Lat => _lat;
+        public float Lat => Precision == 1 ? _lat : _lat / (float) Precision;
 
-        public int Long => _lng;
-        public static LatLon Empty => new (-1000, -1000);
+        public float Long => Precision == 1 ? _lng : _lng / (float) Precision;
+        public static LatLon Empty => new (-1000, -1000, 1);
 
         private static readonly Dictionary<int, Dictionary<int, LatLon>> PoolLatToLonToInstance = new();
+        public readonly int Precision;
 
-        private LatLon(int lat, int lng)
+        private LatLon(int lat, int lng, int precision)
         {
             _lat = lat;
             _lng = lng;
+            Precision = precision;
         }
 
-        public static LatLon FromCoords(double lat, double lon)
+        public int RawLat()
         {
-            int newLat = lat < 0 ? Mathf.CeilToInt((float)lat) : Mathf.FloorToInt((float)lat);
-            int newLon = lon < 0 ? Mathf.CeilToInt((float)lon) : Mathf.FloorToInt((float)lon);
+            return _lat;
+        }
+        public int RawLon()
+        {
+            return _lng;
+        }
+
+        public static LatLon FromCoords(double lat, double lon, int precisionMultiple = 1)
+        {
+            if (precisionMultiple != 1)
+            {
+                if (precisionMultiple < 1)
+                    throw new InvalidDataException("Invalid precision multiple " + precisionMultiple);
+                if (precisionMultiple % 10 != 0)
+                    throw new InvalidDataException("Invalid precision multiple " + precisionMultiple);
+            }
+
+            int newLat = lat < 0 ? Mathf.CeilToInt((float)lat * precisionMultiple) : Mathf.FloorToInt((float)lat * precisionMultiple);
+            int newLon = lon < 0 ? Mathf.CeilToInt((float)lon * precisionMultiple) : Mathf.FloorToInt((float)lon * precisionMultiple);
             if (!PoolLatToLonToInstance.TryGetValue(newLat, out var lonLookup))
             {
                 lonLookup = new Dictionary<int, LatLon>();
@@ -34,7 +54,7 @@ namespace Bulldozer
 
             if (!lonLookup.TryGetValue(newLon, out var inst))
             {
-                lonLookup[newLon] = inst = new LatLon(lat: newLat, lng: newLon);
+                lonLookup[newLon] = inst = new LatLon(lat: newLat, lng: newLon, precisionMultiple);
             }
 
             return inst;
@@ -71,6 +91,11 @@ namespace Bulldozer
         public bool IsEmpty()
         {
             return _lat == Empty._lat && _lng == Empty._lng;
+        }
+
+        public override string ToString()
+        {
+            return $"{Lat},{Long}";
         }
     }
 }

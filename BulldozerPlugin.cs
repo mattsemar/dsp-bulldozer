@@ -1,13 +1,12 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using BepInEx;
+using Bulldozer.SelectiveDecoration;
 using HarmonyLib;
 using UnityEngine;
 using static Bulldozer.Log;
 using static PlatformSystem;
-using Debug = UnityEngine.Debug;
 using Resources = Bulldozer.Properties.Resources;
 
 namespace Bulldozer
@@ -22,15 +21,10 @@ namespace Bulldozer
 
         private static int _soilToDeduct;
 
-        private static Stopwatch clearStopWatch;
-
         public static BulldozerPlugin instance;
-        private RegionPainter _regionPainter;
         private ReformIndexInfoProvider _reformIndexInfoProvider;
-        private PlanetData _regionPainterPlanet;
         private bool _flattenRequested;
         private Harmony _harmony;
-        private DebugFactoryData _debugFactoryData;
 
         private UIElements _ui;
 
@@ -45,15 +39,15 @@ namespace Bulldozer
             _harmony.PatchAll(typeof(WreckingBall));
             _harmony.PatchAll(typeof(PluginConfigWindow));
             PluginConfig.InitConfig(Config);
-            Debug.Log("Bulldozer Plugin Loaded");
+            Debug("Bulldozer Plugin Loaded");
         }
 
         private void Update()
         {
-            if (!GameMain.isRunning 
-                || DSPGame.IsMenuDemo 
-                || GameMain.localPlanet == null 
-                || GameMain.localPlanet.factory == null 
+            if (!GameMain.isRunning
+                || DSPGame.IsMenuDemo
+                || GameMain.localPlanet == null
+                || GameMain.localPlanet.factory == null
                 || GameMain.localPlanet.factory.platformSystem == null)
             {
                 return;
@@ -65,18 +59,14 @@ namespace Bulldozer
                 _reformIndexInfoProvider = new ReformIndexInfoProvider(platformSystem);
             }
 
-            if (_regionPainter == null)
-            {
-                _regionPainter = new RegionPainter(platformSystem, _reformIndexInfoProvider);
-            }
-
             _reformIndexInfoProvider.DoInitWork(GameMain.localPlanet);
 
             if (_ui != null && _ui.IsShowing())
             {
-                if (PluginConfig.enableRegionColor.Value || PluginConfig.IsLatConstrained())
+                if (PluginConfig.NeedReformIndexProvider())
                 {
                     _ui.ReadyForAction = _reformIndexInfoProvider is { Initted: true };
+                    _ui.initPercent = _reformIndexInfoProvider.InitPercentComplete();
                 }
                 else
                 {
@@ -106,8 +96,9 @@ namespace Bulldozer
                 _ui.Unload();
             }
 
-            PluginConfigWindow.NeedReinit = true;
+            _reformIndexInfoProvider?.PlanetChanged(null);
 
+            PluginConfigWindow.NeedReinit = true;
             _harmony.UnpatchSelf();
         }
 
@@ -150,47 +141,22 @@ namespace Bulldozer
             }
 
             var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem, _reformIndexInfoProvider);
-            if (PluginConfig.enableRegionColor.Value && !foundationUsedUp)
+            if (foundationUsedUp)
             {
-                _regionPainter.PaintRegions();
+                return;
             }
 
-            if (PluginConfig.addGuideLines.Value && !foundationUsedUp)
+            if (_reformIndexInfoProvider is not { Initted: true } || _reformIndexInfoProvider.platformSystem != GameMain.localPlanet?.factory?.platformSystem)
             {
-                PaintGuideMarkings(platformSystem);
+                if (_reformIndexInfoProvider.platformSystem != GameMain.localPlanet?.factory?.platformSystem)
+                {
+                    _reformIndexInfoProvider.PlanetChanged(GameMain.localPlanet);
+                }      
+                LogAndPopupMessage($"not initted");
+                return;
             }
-        }
-
-        private void PaintGuideMarkings(PlatformSystem platformSystem)
-        {
-            GuideMarkTypes guideMarkTypes = GuideMarkTypes.None;
-
-            if (PluginConfig.addGuideLinesEquator.Value)
-            {
-                guideMarkTypes |= GuideMarkTypes.Equator;
-            }
-
-            if (PluginConfig.addGuideLinesMeridian.Value)
-            {
-                guideMarkTypes |= GuideMarkTypes.Meridian;
-            }
-
-            if (PluginConfig.addGuideLinesTropic.Value)
-            {
-                guideMarkTypes |= GuideMarkTypes.Tropic;
-            }
-
-            if (PluginConfig.addGuideLinesPoles.Value)
-            {
-                guideMarkTypes |= GuideMarkTypes.Pole;
-            }
-
-            if (PluginConfig.minorMeridianInterval.Value > 0)
-            {
-                guideMarkTypes |= GuideMarkTypes.MinorMeridian;
-            }
-
-            GuideMarker.AddGuideMarks(platformSystem, guideMarkTypes);
+            SelectiveDecorationBuilder.Build(_reformIndexInfoProvider)
+                .Decorate();
         }
 
 
@@ -271,8 +237,8 @@ namespace Bulldozer
 
                     if (firstLatLeveled < 0)
                     {
-                        firstLatLeveled = latLonForModIndex.Lat;
-                        firstLongLeveled = latLonForModIndex.Long;
+                        firstLatLeveled = (int)latLonForModIndex.Lat;
+                        firstLongLeveled = (int)latLonForModIndex.Long;
                         firstIndex = index;
                     }
                 }
@@ -345,7 +311,7 @@ namespace Bulldozer
             logger.LogDebug($"tech proto not matched {JsonUtility.ToJson(techProto)}");
         }
 
-        [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), "OnCategoryButtonClick")]
+        [HarmonyPostfix, HarmonyPatch(typeof(UIBuildMenu), nameof(UIBuildMenu.OnCategoryButtonClick))]
         public static void UIBuildMenu_OnCategoryButtonClick_Postfix(UIBuildMenu __instance)
         {
             var uiBuildMenu = __instance;
@@ -373,7 +339,18 @@ namespace Bulldozer
             {
                 instance._ui.TechUnlockedState = instance.CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
                 if (instance._reformIndexInfoProvider != null && instance._ui != null)
-                    instance._ui.ReadyForAction = instance._reformIndexInfoProvider.Initted || !PluginConfig.IsLatConstrained();
+                {
+                    if (!instance._reformIndexInfoProvider.Initted && PluginConfig.NeedReformIndexProvider())
+                    {
+                        instance._ui.ReadyForAction = false;
+                        instance._ui.initPercent = instance._reformIndexInfoProvider.InitPercentComplete();
+                    }
+                    else
+                    {
+                        instance._ui.ReadyForAction = true;
+                    }
+                }
+
                 instance._ui.Show();
             }
         }
@@ -415,9 +392,10 @@ namespace Bulldozer
             });
 
             _ui.TechUnlockedState = CheckResearchedTech() || PluginConfig.disableTechRequirement.Value;
-            if (PluginConfig.enableRegionColor.Value || PluginConfig.IsLatConstrained())
+            if (PluginConfig.NeedReformIndexProvider())
             {
                 _ui.ReadyForAction = _reformIndexInfoProvider is { Initted: true };
+                _ui.initPercent = _reformIndexInfoProvider?.InitPercentComplete() ?? 0;
             }
             else
             {
@@ -504,34 +482,8 @@ namespace Bulldozer
 
                 if (PluginConfig.addGuideLines.Value)
                 {
-                    var markingTypes = PluginConfig.addGuideLinesEquator.Value ? "equator" : "";
-                    if (PluginConfig.addGuideLinesMeridian.Value)
-                    {
-                        if (PluginConfig.minorMeridianInterval.Value > 0)
-                            markingTypes += " (minor and major)";
-                        markingTypes += " meridians";
-                    }
-
-                    if (PluginConfig.addGuideLinesTropic.Value)
-                    {
-                        markingTypes += " tropics";
-                    }
-
-                    popupMessage += $"\nAdd guide markings to certain points on planet ({markingTypes})";
-                    if (PluginConfig.IsLatConstrained())
-                    {
-                        popupMessage += "\n\tNote that guide marks outside of Selected Latitudes will not be applied.";
-                    }
-                }
-
-                if (PluginConfig.enableRegionColor.Value)
-                {
-                    var regionCount = RegionalColors.RegionCountDefined();
-                    popupMessage += $"\nPaint custom colors for {regionCount} regions";
-                }
-                else if (RegionalColors.RegionCountDefined() > 0)
-                {
-                    popupMessage += $"\nSkip painting {RegionalColors.RegionCountDefined()} regions (config option 'Enable Region Color' not set).";
+                    var planetPainter = SelectiveDecorationBuilder.Build(_reformIndexInfoProvider);
+                    popupMessage += "\n" + planetPainter.BuildActionSummary();
                 }
 
                 if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat || PluginConfig.foundationConsumption.Value != OperationMode.FullCheat)
@@ -633,6 +585,23 @@ namespace Bulldozer
             {
                 logger.LogWarning($"InvokePlugin failed {e}");
             }
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameData), "NewGame")]
+        static void EnterGame()
+        {
+            Debug("Starting new game");
+            if (instance != null && instance._reformIndexInfoProvider != null)
+                instance._reformIndexInfoProvider.PlanetChanged(null);
+        }
+
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameSave), "LoadCurrentGame")]
+        static void LoadCurrentGame(bool __result, string saveName)
+        {
+            if (instance != null && instance._reformIndexInfoProvider != null)
+                instance._reformIndexInfoProvider.PlanetChanged(null);
         }
     }
 }
