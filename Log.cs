@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using BepInEx.Logging;
 
 namespace Bulldozer
@@ -7,20 +8,20 @@ namespace Bulldozer
     {
         public static ManualLogSource logger;
 
-        public static void LogAndPopupMessage(string message)
+        public static void LogAndPopupMessage(string message, bool playSound = false)
         {
-            UIRealtimeTip.Popup(message);
+            UIRealtimeTip.Popup(message, playSound);
             logger.LogWarning($"Popped up message {message}");
         }
         
         
         public static void Debug(string message)
         {
-            logger.LogDebug(message);
+            logger.LogDebug($"[{DateTime.Now:HH:mm:ss.fff}] {message}");
         }
         public static void Warn(string message)
         {
-            logger.LogWarning(message);
+            logger.LogWarning($"[{DateTime.Now:HH:mm:ss.fff}] {message}");
         }
 
         private static Dictionary<string, int> _logCount = new ();
@@ -33,6 +34,13 @@ namespace Bulldozer
     
             _logCount[msg]++;
             Debug(string.Format(msg, args));
+        }
+        
+        public static void Trace(string msg)
+        {
+#if DEBUG
+            logger.LogInfo($"[{DateTime.Now:HH:mm:ss.fff}] {msg}");
+#endif
         }
     }
 }

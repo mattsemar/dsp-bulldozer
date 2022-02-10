@@ -55,6 +55,7 @@ namespace Bulldozer
         [NonSerialized] public Image DestroyMachinesCheckBoxImage;
         private Text hover;
         private UIButton mainActionButton;
+        public int initPercent;
 
         public bool TechUnlockedState
         {
@@ -82,7 +83,7 @@ namespace Bulldozer
                 if (_techUnlocked && !_readyToGo)
                 {
                     mainActionButton.button.interactable = false;
-                    mainActionButton.tips.tipText = "Initting...";
+                    mainActionButton.tips.tipText = $"Initializing ({initPercent}% complete)";
                 }
                 else if (_readyToGo && _techUnlocked)
                 {

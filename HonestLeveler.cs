@@ -24,9 +24,9 @@ namespace Bulldozer
     public class HonestLeveler
     {
         private static HonestLeveler _instance;
-        private readonly Stopwatch _clearStopWatch = new Stopwatch();
+        private readonly Stopwatch _clearStopWatch = new();
         private readonly PlanetFactory _factory;
-        private readonly List<LevelerWorkItem> _levelerWork = new List<LevelerWorkItem>();
+        private readonly List<LevelerWorkItem> _levelerWork = new();
         private readonly Player _player;
         private ItemDestructionPhase _previousPhase = ItemDestructionPhase.Done;
         private bool _running;

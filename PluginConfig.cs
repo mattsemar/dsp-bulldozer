@@ -131,7 +131,8 @@ namespace Bulldozer
             buryVeinMode = configFile.Bind("Veins", "BuryVeinMode", BuryVeinMode.Tool, "No impact if raise/lower checkbox is not set");
 
             addGuideLinesEquator = configFile.Bind("Decoration", "AddGuideLinesEquator", true,
-                "Enable/disable of the equator guideline individually. No effect if AddGuideLines is disabled");
+                "Enable/disable equator guideline individually. No effect if AddGuideLines is disabled");
+
             addGuideLinesMeridian = configFile.Bind("Decoration", "AddGuideLinesMeridian", true,
                 "Enable/disable of the meridian guidelines individually. No effect if AddGuideLines is disabled");
             addGuideLinesTropic = configFile.Bind("Decoration", "AddGuideLinesTropic", true,
@@ -243,6 +244,21 @@ namespace Bulldozer
             if (maxLatitude.Value == minLatitude.Value)
                 return false;
             return maxLatitude.Value != 90 || minLatitude.Value != -90;
+        }
+
+        public static bool NeedReformIndexProvider()
+        {
+            if (IsLatConstrained())
+                return true;
+            if (enableRegionColor.Value)
+                return true;
+            if (!addGuideLines.Value)
+                return false;
+            return (addGuideLinesEquator.Value
+                    || addGuideLinesMeridian.Value
+                    || addGuideLinesPoles.Value
+                    || addGuideLinesTropic.Value
+                    || minorMeridianInterval.Value > 0);
         }
 
         public static string GetLatRangeString()

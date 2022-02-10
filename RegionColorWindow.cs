@@ -16,8 +16,6 @@ namespace Bulldozer
         private static Texture2D _tooltipBg;
 
         private static int _loggedMessageCount = 0;
-        private static string _savedGUISkin;
-        private static GUISkin _savedGUISkinObj;
         private static RegionalColors _regionalColors = RegionalColors.Instance;
         private static Pager<RegionColorConfig> _pager;
         private static bool lastOverLapCheckFailed;

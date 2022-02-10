@@ -14,7 +14,7 @@ namespace Bulldozer
         public bool mirror;
         public int colorIndex;
 
-        public bool ContainsPosition(int lat, int lng)
+        public bool ContainsPosition(float lat, float lng)
         {
             bool allLatitudes = minLatitude == maxLatitude;
             bool allLongs = minLongitude == maxLongitude;
@@ -138,7 +138,7 @@ namespace Bulldozer
             return result;
         }
 
-        public RegionColorConfig GetForPosition(int lat, int lng)
+        public RegionColorConfig GetForPosition(float lat, float lng)
         {
             foreach (var regionColorConfig in _regionColorConfigs)
             {

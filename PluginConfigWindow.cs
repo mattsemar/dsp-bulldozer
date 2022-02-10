@@ -12,7 +12,7 @@ namespace Bulldozer
     public class PluginConfigWindow
     {
         public static bool visible;
-        private static Rect _windowRect = new Rect((Screen.width / 3) * 2, 100f, 500f, 820f);
+        private static Rect _windowRect = new((Screen.width / 3) * 2, 100f, 500f, 820f);
 
         private static int _leftColumnWidth;
         public static bool NeedReinit;
@@ -21,7 +21,7 @@ namespace Bulldozer
         private static Dictionary<Color, Texture2D> _customColorTextures = new();
 
         private static int _loggedMessageCount = 0;
-        private static Dictionary<string, int> previousSelections = new();
+        private static readonly Dictionary<string, int> previousSelections = new();
         private static string _savedGUISkin;
         private static GUISkin _savedGUISkinObj;
         private static Color _savedColor;
