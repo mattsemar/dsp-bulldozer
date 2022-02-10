@@ -41,6 +41,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.1.4
+Update: updated guide marking algorithm to work better with GS2    
+
 #### v1.1.3
 Bugfix: fix issue with regional painting after switching to a new planet (thanks, Tobias Pottgüter)    
 

@@ -11,13 +11,11 @@ using Resources = Bulldozer.Properties.Resources;
 
 namespace Bulldozer
 {
-    [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
+    [BepInPlugin(PluginGuid, PluginInfo.PLUGIN_NAME, PluginInfo.PLUGIN_VERSION)]
     [BepInProcess("DSPGAME.exe")]
     public class BulldozerPlugin : BaseUnityPlugin
     {
         public const string PluginGuid = "semarware.dysonsphereprogram.bulldozer";
-        public const string PluginName = "Bulldozer";
-        public const string PluginVersion = "1.1.3";
 
         private static int _soilToDeduct;
 
