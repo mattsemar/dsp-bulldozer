@@ -8,7 +8,7 @@
         public EquatorPainter(ReformIndexInfoProvider infoProvider)
         {
             _infoProvider = infoProvider;
-            _decorationConfig = new DecorationConfig(1, PluginConfig.guideLinesEquatorColor.Value);
+            _decorationConfig = new DecorationConfig(PluginConfig.guideLinesEquatorColor.Value);
         }
 
         public DecorationConfig GetDecorationForLocation(LatLon location)

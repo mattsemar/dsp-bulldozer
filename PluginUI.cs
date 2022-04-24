@@ -74,7 +74,8 @@ namespace Bulldozer
                     mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 }
             }
-        }  
+        }
+
         public bool ReadyForAction
         {
             set
@@ -87,7 +88,6 @@ namespace Bulldozer
                 }
                 else if (_readyToGo && _techUnlocked)
                 {
-
                     mainActionButton.button.interactable = true;
                     mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 }
@@ -129,7 +129,7 @@ namespace Bulldozer
                     currentTipMessageIsDefault = false;
                     if (PluginConfig.IsLatConstrained())
                     {
-                        mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY_IN_LAT;   
+                        mainActionButton.tips.tipText = DEFAULT_TIP_MESSAGE_DESTROY_FACTORY_IN_LAT;
                     }
                     else
                     {
@@ -151,12 +151,14 @@ namespace Bulldozer
             {
                 veinsAlterMessage = $"Will attempt to {PluginConfig.GetCurrentVeinsRaiseState()} veins in selected latitude range ({PluginConfig.GetLatRangeString()})";
             }
+
             var part2 = PluginConfig.alterVeinState.Value ? veinsAlterMessage : DEFAULT_TIP_MESSAGE_VEINS_NO_ALTER;
             currentTipMessageIsDefault = !PluginConfig.alterVeinState.Value;
             if (PluginConfig.IsLatConstrained())
             {
-                return DEFAULT_TIP_MESSAGE_LAT_PT1 + part2;    
+                return DEFAULT_TIP_MESSAGE_LAT_PT1 + part2;
             }
+
             return DEFAULT_TIP_MESSAGE_PT1 + part2;
         }
 
@@ -470,25 +472,40 @@ namespace Bulldozer
 
         private void OnDrawEquatorCheckClick(PointerEventData data)
         {
-            PluginConfig.addGuideLines.Value = !PluginConfig.addGuideLines.Value;
+            OnDrawEquatorCheckClickImpl();
+        }
+
+        private void OnDrawEquatorCheckClickImpl(bool explicitDisable = false)
+        {
+            if (explicitDisable)
+                PluginConfig.addGuideLines.Value = false;
+            else
+                PluginConfig.addGuideLines.Value = !PluginConfig.addGuideLines.Value;
             CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
             _drawEquatorField = PluginConfig.addGuideLines.Value;
             if (PluginConfig.addGuideLines.Value)
             {
                 if (PluginConfig.alterVeinState.Value)
                 {
-                    OnAlterVeinCheckClick(data);
+                    OnAlterVeinCheckClickImpl(true);
                 }
 
                 if (PluginConfig.destroyFactoryAssemblers.Value)
                 {
-                    OnDestroyMachinesCheckClick(data);
+                    OnDestroyMachinesCheckClickImpl(true);
                 }
             }
         }
         private void OnAlterVeinCheckClick(PointerEventData obj)
         {
-            PluginConfig.alterVeinState.Value = !PluginConfig.alterVeinState.Value;
+            OnAlterVeinCheckClickImpl();
+        }
+        private void OnAlterVeinCheckClickImpl(bool explicitDisable = false)
+        {
+            if (explicitDisable)
+                PluginConfig.alterVeinState.Value = false;
+            else
+                PluginConfig.alterVeinState.Value = !PluginConfig.alterVeinState.Value;
             AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
             _alterVeinsField = PluginConfig.alterVeinState.Value;
             // turn off the other check if this is clicked since it can be confusing
@@ -496,17 +513,27 @@ namespace Bulldozer
             {
                 if (PluginConfig.addGuideLines.Value)
                 {
-                    OnDrawEquatorCheckClick(obj);
+                    OnDrawEquatorCheckClickImpl(true);
                 }
+
                 if (PluginConfig.destroyFactoryAssemblers.Value)
                 {
-                    OnDestroyMachinesCheckClick(obj);
+                    OnDestroyMachinesCheckClickImpl(true);
                 }
             }
         }
         private void OnDestroyMachinesCheckClick(PointerEventData obj)
         {
-            PluginConfig.destroyFactoryAssemblers.Value = !PluginConfig.destroyFactoryAssemblers.Value;
+            OnDestroyMachinesCheckClickImpl();
+        }
+
+        private void OnDestroyMachinesCheckClickImpl(bool explicitDisable = false)
+        {
+            if (explicitDisable)
+                PluginConfig.destroyFactoryAssemblers.Value = false;
+            else
+                PluginConfig.destroyFactoryAssemblers.Value = !PluginConfig.destroyFactoryAssemblers.Value;
+            
             DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
             _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
             if (PluginConfig.destroyFactoryAssemblers.Value)
@@ -514,11 +541,12 @@ namespace Bulldozer
                 // disable others
                 if (PluginConfig.addGuideLines.Value)
                 {
-                    OnDrawEquatorCheckClick(obj);
+                    OnDrawEquatorCheckClickImpl(true);
                 }
+
                 if (PluginConfig.alterVeinState.Value)
                 {
-                    OnAlterVeinCheckClick(obj);
+                    OnAlterVeinCheckClickImpl(true);
                 }
             }
         }

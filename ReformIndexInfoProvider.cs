@@ -14,7 +14,7 @@ namespace Bulldozer
         private readonly Dictionary<int, LatLon> _llLookup = new();
         private readonly Dictionary<int, LatLon> _llModLookup = new();
         private readonly HashSet<LatLon> _tropicsLatitudes = new();
-        private readonly LatLon[] _equatorLatitudes = new LatLon[2];
+        private readonly LatLon[] _equatorLatitudes = { LatLon.Empty, LatLon.Empty };
         private readonly HashSet<LatLon> _meridians = new();
         public PlatformSystem platformSystem;
         private bool _lookupsCreated;
@@ -143,19 +143,27 @@ namespace Bulldozer
                 }
 
                 var latCoord = LatLon.FromCoords(_latLookupWorkItemIndex, 0, latLonPrecision);
-                if (_latLookupWorkItemIndex < 0)
+                if (_latLookupWorkItemIndex <= 0)
                 {
                     if (_equatorLatitudes[1].IsEmpty())
+                    {
                         _equatorLatitudes[1] = latCoord;
+                    }
                     else if (_equatorLatitudes[1].Lat < latCoord.Lat)
+                    {
                         _equatorLatitudes[1] = latCoord;
+                    }
                 }
                 if (_latLookupWorkItemIndex >= 0)
                 {
                     if (_equatorLatitudes[0].IsEmpty())
+                    {
                         _equatorLatitudes[0] = latCoord;
+                    }
                     else if (_equatorLatitudes[0].Lat > latCoord.Lat)
+                    {
                         _equatorLatitudes[0] = latCoord;
+                    }
                 }
 
                 prevLength = longitudeCounts;
@@ -203,7 +211,6 @@ namespace Bulldozer
 
                 if ((DateTime.Now - start).TotalMilliseconds > maxRuntimeMS)
                 {
-                    // Debug($"bailing at {_latLookupWorkItemIndex}, {latDegIncrement} {maxRuntimeMS} {incr}");
                     break;
                 }
             }

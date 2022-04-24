@@ -13,7 +13,7 @@ namespace Bulldozer.SelectiveDecoration
 
         public MinorMeridianPainter()
         {
-            _minorMeridianConfig = new DecorationConfig(1, PluginConfig.guideLinesMinorMeridianColor.Value);
+            _minorMeridianConfig = new DecorationConfig(PluginConfig.guideLinesMinorMeridianColor.Value);
             InitMeridianLongitudes();
         }
 

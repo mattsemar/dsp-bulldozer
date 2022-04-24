@@ -8,7 +8,7 @@
         public TropicsPainter(ReformIndexInfoProvider provider)
         {
             _infoProvider = provider;
-            _tropicsDecorationConfig = new DecorationConfig(1, PluginConfig.guideLinesTropicColor.Value);
+            _tropicsDecorationConfig = new DecorationConfig(PluginConfig.guideLinesTropicColor.Value);
         }
 
         public DecorationConfig GetDecorationForLocation(LatLon location)

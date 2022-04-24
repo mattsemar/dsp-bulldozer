@@ -41,6 +41,10 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.1.5
+Update: Make guidelines foundation type match FoundationDecorationMode setting (when it can be resolved to paint or decorate) (thanks PiggyWhiskey on GitHub)
+Bugfix: Fix bug in factory teardown when factory has modded items on belts but mod that added item is no longer installed  
+
 #### v1.1.4
 Update: updated guide marking algorithm to work better with GS2    
 
