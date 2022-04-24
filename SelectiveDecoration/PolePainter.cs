@@ -11,7 +11,7 @@ namespace Bulldozer.SelectiveDecoration
             {
                 return DecorationConfig.None;
             }
-            return new DecorationConfig(1, PluginConfig.guideLinesPoleColor.Value);
+            return new DecorationConfig(PluginConfig.guideLinesPoleColor.Value);
         }
 
         public string ActionSummary() => "Poles";

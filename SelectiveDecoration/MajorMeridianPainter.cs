@@ -8,7 +8,7 @@
         public MajorMeridianPainter(ReformIndexInfoProvider reformIndexInfoProvider)
         {
             infoProvider = reformIndexInfoProvider;
-            _majorMeridianConfig = new DecorationConfig(1, PluginConfig.guideLinesMeridianColor.Value);
+            _majorMeridianConfig = new DecorationConfig(PluginConfig.guideLinesMeridianColor.Value);
         }
 
         public DecorationConfig GetDecorationForLocation(LatLon location)

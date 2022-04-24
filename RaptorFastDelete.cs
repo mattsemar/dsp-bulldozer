@@ -131,6 +131,12 @@ namespace Bulldozer
                         ref var cargo = ref cargoPool[i];
                         if (cargo.item == 0)
                             continue;
+                        if (!takeBackCount.ContainsKey(cargo.item))
+                        {
+                            Warn($"found cargo item not in LDB.items.dataArray: {cargo.item}");
+                            takeBackCount[cargo.item] = 0;
+                            takeBackInc[cargo.item] = 0;
+                        }
                         takeBackCount[cargo.item] += cargo.stack;
                         takeBackInc[cargo.item] += cargo.inc;
 

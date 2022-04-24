@@ -37,9 +37,9 @@
                 result.Register(new SelectiveRegionalPlanetDecorator());
             }
 
-#if DEBUG
-            result.Register(new DebugBackgroundPainter());
-#endif
+// #if DEBUG
+            // result.Register(new DebugBackgroundPainter());
+// #endif
 
             return result;
         }
