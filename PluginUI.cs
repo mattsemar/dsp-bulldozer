@@ -162,25 +162,61 @@ namespace Bulldozer
             return DEFAULT_TIP_MESSAGE_PT1 + part2;
         }
 
-
-        public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject button1, Action<int> action)
+        private static void ResetButtonPos(RectTransform rectTransform)
         {
-            InitOnOffSprites();
-            InitActionButton(button1, action);
-            InitDrawEquatorCheckbox(environmentModificationContainer, button1);
-            InitAlterVeinsCheckbox(environmentModificationContainer);
-            InitDestroyMachinesCheckbox(environmentModificationContainer);
-            InitConfigButton(environmentModificationContainer);
-            if (GameMain.sandboxToolsEnabled)
+            var posStr = $"{rectTransform.anchoredPosition.x},{rectTransform.anchoredPosition.y}";
+            if (PluginConfig.originalReformButtonPosition.Value == "0,0")
             {
-                Hide();
+                PluginConfig.originalReformButtonPosition.Value = posStr;
+            }
+            else if (posStr != PluginConfig.originalReformButtonPosition.Value)
+            {
+                var parts = PluginConfig.originalReformButtonPosition.Value.Split(',');
+                try
+                {
+                    if (float.TryParse(parts[0].Trim(), out var resultx))
+                    {
+                        if (float.TryParse(parts[1].Trim(), out var resulty))
+                        {
+                            Log.Debug($"Setting button back to original {PluginConfig.originalReformButtonPosition.Value} {resultx}, {resulty}");
+                            rectTransform.anchoredPosition = new Vector2(resultx, resulty);
+                        }
+                        else
+                        {
+                            Log.Debug($"Failed to parse yvalue {parts[1]}");
+                        }
+                    }
+                    else
+                    {
+                        Log.Debug($"Failed to parse xvalue {parts[0]}");
+                    }
+                }
+                catch (Exception e)
+                {
+                    // ignored
+                }
             }
         }
 
-        private void InitActionButton(GameObject button1, Action<int> action)
+
+        public void AddBulldozeComponents(RectTransform environmentModificationContainer, UIBuildMenu uiBuildMenu, GameObject foundationButton,
+            GameObject reformAllButton, Action<int> action)
         {
+            InitOnOffSprites();
+            InitActionButton(foundationButton, action);
+            InitDrawEquatorCheckbox(environmentModificationContainer, foundationButton);
+            InitAlterVeinsCheckbox(environmentModificationContainer);
+            InitDestroyMachinesCheckbox(environmentModificationContainer);
+            InitConfigButton(environmentModificationContainer);
+        }
+
+        private void InitActionButton(GameObject buttonToCopy, Action<int> action)
+        {
+            var rectTransform = buttonToCopy.gameObject.GetComponent<RectTransform>();
             countText = null;
-            BulldozeButton = CopyButton(button1.GetComponent<RectTransform>(), Vector2.right * (5 + button1.GetComponent<RectTransform>().sizeDelta.x), out countText,
+            ResetButtonPos(rectTransform);
+            rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x - rectTransform.sizeDelta.x, rectTransform.anchoredPosition.y);
+            BulldozeButton = CopyButton(buttonToCopy.GetComponent<RectTransform>(), Vector2.right * (5 + buttonToCopy.GetComponent<RectTransform>().sizeDelta.x), out countText,
                 Helper.GetSprite("bulldoze"), action);
             gameObjectsToDestroy.Add(BulldozeButton.gameObject);
             PaveActionButton = BulldozeButton.GetComponent<UIButton>();
@@ -206,7 +242,7 @@ namespace Bulldozer
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(350, -90);
+            rect.anchoredPosition = new Vector2(GetCheckBoxXValue(), -90);
             drawEquatorCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
             drawEquatorCheckboxButton.HoverText = "Add painted guidelines at various locations (equator, tropics, meridians configurable)";
             drawEquatorCheckboxButton.onClick += OnDrawEquatorCheckClick;
@@ -235,7 +271,6 @@ namespace Bulldozer
             try
             {
                 _newSeparator = Instantiate(sepLine, environmentModificationContainer.transform);
-                _newSeparator.tag = "Bulldozer plugin sep line";
                 var button1Rect = button1.GetComponent<RectTransform>();
                 _newSeparator.GetComponent<RectTransform>().anchoredPosition = new Vector2(button1Rect.anchoredPosition.x + button1Rect.sizeDelta.x - 25,
                     sepLine.GetComponent<RectTransform>().anchoredPosition.y);
@@ -258,7 +293,7 @@ namespace Bulldozer
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(350, -105);
+            rect.anchoredPosition = new Vector2(GetCheckBoxXValue(), -105);
             var repaveCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
             repaveCheckboxButton.HoverText = "Check to attempt to raise or lower all veins. No foundation will be placed";
 
@@ -284,6 +319,7 @@ namespace Bulldozer
             AlterVeinsCheckBoxImage.sprite = PluginConfig.alterVeinState.Value ? spriteChecked : spriteUnChecked;
             repaveCheckboxButton.onClick += OnAlterVeinCheckClick;
         }
+
         private void InitDestroyMachinesCheckbox(RectTransform environmentModificationContainer)
         {
             var destroyCheck = new GameObject("DestroyMachines");
@@ -295,7 +331,7 @@ namespace Bulldozer
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(350, -120);
+            rect.anchoredPosition = new Vector2(GetCheckBoxXValue(), -120);
             var destroyMachinesButton = rect.gameObject.AddComponent<CheckboxControl>();
             destroyMachinesButton.HoverText = "Clear all factory machines. Skip adding foundation.";
 
@@ -322,6 +358,16 @@ namespace Bulldozer
             destroyMachinesButton.onClick += OnDestroyMachinesCheckClick;
         }
 
+        private float GetCheckBoxXValue()
+        {
+            if (BulldozeButton != null)
+            {
+                return -BulldozeButton.anchoredPosition.x + BulldozeButton.sizeDelta.x + 10;
+            }
+
+            return 350;
+        }
+
         private void InitConfigButton(RectTransform environmentModificationContainer)
         {
             var configBtn = new GameObject("Config");
@@ -333,7 +379,7 @@ namespace Bulldozer
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(375, -120);
+            rect.anchoredPosition = new Vector2(GetCheckBoxXValue() + 25, -120);
             var invokeConfig = rect.gameObject.AddComponent<CheckboxControl>();
             invokeConfig.HoverText = "Open config";
 
@@ -500,10 +546,12 @@ namespace Bulldozer
                 }
             }
         }
+
         private void OnAlterVeinCheckClick(PointerEventData obj)
         {
             OnAlterVeinCheckClickImpl();
         }
+
         private void OnAlterVeinCheckClickImpl(bool explicitDisable = false)
         {
             if (explicitDisable)
@@ -526,6 +574,7 @@ namespace Bulldozer
                 }
             }
         }
+
         private void OnDestroyMachinesCheckClick(PointerEventData obj)
         {
             OnDestroyMachinesCheckClickImpl();
@@ -537,7 +586,7 @@ namespace Bulldozer
                 PluginConfig.destroyFactoryAssemblers.Value = false;
             else
                 PluginConfig.destroyFactoryAssemblers.Value = !PluginConfig.destroyFactoryAssemblers.Value;
-            
+
             DestroyMachinesCheckBoxImage.sprite = PluginConfig.destroyFactoryAssemblers.Value ? spriteChecked : spriteUnChecked;
             _destroyFactoryMachines = PluginConfig.destroyFactoryAssemblers.Value;
             if (PluginConfig.destroyFactoryAssemblers.Value)

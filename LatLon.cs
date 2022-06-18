@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using UnityEngine;
 
 namespace Bulldozer
@@ -91,7 +90,7 @@ namespace Bulldozer
 
         public bool IsEmpty()
         {
-            return _lat == Empty._lat && _lng == Empty._lng;
+            return Precision == 0 || _lat == Empty._lat && _lng == Empty._lng;
         }
 
         public override string ToString()

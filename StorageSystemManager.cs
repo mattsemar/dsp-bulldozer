@@ -17,19 +17,7 @@ namespace Bulldozer
 
         private static StorageSystemManager GetInstance()
         {
-            if (_instance == null)
-            {
-                _instance = new StorageSystemManager(GameMain.mainPlayer.factory, GameMain.mainPlayer);
-                return _instance;
-            }
-
-            if (_instance._factory?.index == GameMain.mainPlayer.factory.index)
-            {
-                return _instance;
-            }
-
-            _instance = new StorageSystemManager(GameMain.mainPlayer.factory, GameMain.mainPlayer);
-            return _instance;
+            return new StorageSystemManager(GameMain.mainPlayer.factory, GameMain.mainPlayer);
         }
 
         private int CountLocalStationItems(int itemId)

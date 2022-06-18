@@ -12,7 +12,7 @@ namespace Bulldozer
     {
         private const int LatitudesPerPass = 10;
         private readonly Dictionary<int, LatLon> _llLookup = new();
-        private readonly Dictionary<int, LatLon> _llModLookup = new();
+        private readonly LatLon[] _llModLookup = new LatLon[GameMain.localPlanet.data.modData.Length * 2];
         private readonly HashSet<LatLon> _tropicsLatitudes = new();
         private readonly LatLon[] _equatorLatitudes = { LatLon.Empty, LatLon.Empty };
         private readonly HashSet<LatLon> _meridians = new();
@@ -35,7 +35,7 @@ namespace Bulldozer
         private void SetInitValues(PlatformSystem newPlatformSystem, int planetId)
         {
             _llLookup.Clear();
-            _llModLookup.Clear();
+            Array.Clear(_llModLookup, 0, _llLookup.Count);
             _tropicsLatitudes.Clear();
             _equatorLatitudes[0] = LatLon.Empty;
             _equatorLatitudes[1] = LatLon.Empty;
@@ -92,9 +92,9 @@ namespace Bulldozer
                 return LatLon.Empty;
             }
 
-            if (_llModLookup.TryGetValue(index, out var result))
-                return result;
-            return LatLon.Empty;
+            if (_llModLookup[index].IsEmpty())
+                return LatLon.Empty;
+            return _llModLookup[index];
         }
 
         public void DoInitWork(PlanetData planetData)
@@ -226,7 +226,7 @@ namespace Bulldozer
                 var maxRef = platformSystem.maxReformCount;
                 var maxRaw = planetRawData.dataLength;
                 Debug(
-                    $"Completed position computations for {_llLookup.Count}/{maxRef}, {_llModLookup.Count}/{maxRaw} indices. Updates required: {_initUpdateCounter}. Found {_tropicsLatitudes.Count} tropics. {_meridians.Count} meridian points");
+                    $"Completed position computations for {_llLookup.Count}/{maxRef}, {_llModLookup.Length}/{maxRaw} indices. Updates required: {_initUpdateCounter}. Found {_tropicsLatitudes.Count} tropics. {_meridians.Count} meridian points");
             }
         }
 

@@ -79,6 +79,10 @@ namespace Bulldozer
                 _ui.countText.text = $"{WreckingBall.RemainingTaskCount()}";
         }
 
+        private void LateUpdate()
+        {
+            UIRoot.instance.uiGame.buildMenu.reformAllButton.gameObject.SetActive(false);
+        }
 
         private void OnDestroy()
         {
@@ -152,7 +156,7 @@ namespace Bulldozer
                 return;
             }
             SelectiveDecorationBuilder.Build(_reformIndexInfoProvider)
-                .Flatten()
+                // .Flatten()
                 .Decorate();
         }
 
@@ -349,11 +353,7 @@ namespace Bulldozer
                     }
                 }
 
-                if (GameMain.sandboxToolsEnabled)
-                {
-                    instance._ui.Hide();
-                } else 
-                    instance._ui.Show();
+                instance._ui.Show();
             }
         }
 
@@ -361,15 +361,17 @@ namespace Bulldozer
         {
             GameObject environmentModificationContainer = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group");
             var containerRect = environmentModificationContainer.GetComponent<RectTransform>();
-            var button1 = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group/button-1");
+            var foundationButton = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/child-group/button-1");
+            var reformAllButton = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/reform-group/button-reform-all");
+            
             _ui = containerRect.gameObject.AddComponent<UIElements>();
             UIElements.logger = logger;
-            if (containerRect == null || button1 == null)
+            if (containerRect == null || foundationButton == null)
             {
                 return;
             }
 
-            _ui.AddBulldozeComponents(containerRect, uiBuildMenu, button1, bt =>
+            _ui.AddBulldozeComponents(containerRect, uiBuildMenu, foundationButton, reformAllButton, bt =>
             {
                 StartCoroutine(InvokeAction(1, () =>
                 {
