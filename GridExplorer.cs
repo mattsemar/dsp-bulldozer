@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Diagnostics;
+using Bulldozer.SelectiveDecoration;
 using UnityEngine;
 using static Bulldozer.Log;
 
@@ -87,6 +88,7 @@ namespace Bulldozer
 
         public static int GetNeededFoundation(PlatformSystem platformSystem, ReformIndexInfoProvider reformIndexInfoProvider)
         {
+            var planetPainter = SelectiveDecorationBuilder.Build(reformIndexInfoProvider);
             var foundationNeeded = 0;
             for (var index = 0; index < platformSystem.maxReformCount; ++index)
             {
@@ -97,7 +99,16 @@ namespace Bulldozer
                     {
                         continue;
                     }
-                } 
+                }
+
+                if (PluginConfig.guideLinesOnly.Value)
+                {
+                    var latLon = reformIndexInfoProvider.GetForIndex(index);
+                    if (!latLon.IsEmpty() && planetPainter.DecoratorForLocation(latLon).IsNone())
+                    {
+                        continue;
+                    }
+                }
                 foundationNeeded += platformSystem.IsTerrainReformed(platformSystem.GetReformType(index)) ? 0 : 1;
             }
 
@@ -122,7 +133,7 @@ namespace Bulldozer
                 neededFoundation = GetNeededFoundation(platformSystem, indexInfoProvider);
             }
 
-            if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat)
+            if (PluginConfig.soilPileConsumption.Value != OperationMode.FullCheat && !PluginConfig.guideLinesOnly.Value)
             {
                 _soilNeeded = 0;
                 IterateReform(GameMain.mainPlayer.controller.actionBuild.reformTool, SumReform, 1000 * 5);

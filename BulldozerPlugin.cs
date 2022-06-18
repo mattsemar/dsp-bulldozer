@@ -73,15 +73,10 @@ namespace Bulldozer
             }
 
             WreckingBall.DoWorkItems(GameMain.mainPlayer?.factory);
-            var result = HonestLeveler.DoWorkItems(GameMain.mainPlayer?.factory);
-            if (HonestLevelerEndState.ENDED_EARLY == result)
-            {
-                logger.LogInfo("ran out of soil pile");
-            }
 
             DoPaveUpdate();
             if (_ui != null && _ui.countText != null)
-                _ui.countText.text = $"{WreckingBall.RemainingTaskCount() + HonestLeveler.RemainingTaskCount()}";
+                _ui.countText.text = $"{WreckingBall.RemainingTaskCount()}";
         }
 
 
@@ -138,10 +133,13 @@ namespace Bulldozer
                 return;
             }
 
-            var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem, _reformIndexInfoProvider);
-            if (foundationUsedUp)
+            if (!PluginConfig.guideLinesOnly.Value)
             {
-                return;
+                var foundationUsedUp = PlanetPainter.PaintPlanet(platformSystem, _reformIndexInfoProvider);
+                if (foundationUsedUp)
+                {
+                    return;
+                }
             }
 
             if (_reformIndexInfoProvider is not { Initted: true } || _reformIndexInfoProvider.platformSystem != GameMain.localPlanet?.factory?.platformSystem)
@@ -150,10 +148,11 @@ namespace Bulldozer
                 {
                     _reformIndexInfoProvider.PlanetChanged(GameMain.localPlanet);
                 }      
-                LogAndPopupMessage($"not initted");
+                LogAndPopupMessage("not initted");
                 return;
             }
             SelectiveDecorationBuilder.Build(_reformIndexInfoProvider)
+                .Flatten()
                 .Decorate();
         }
 
@@ -217,33 +216,34 @@ namespace Bulldozer
             int firstLatLeveled = -1;
             int firstLongLeveled = -1;
             int firstIndex = -1;
-            for (var index = 0; index < GameMain.localPlanet.modData.Length << 1; ++index)
-            {
-                if (PluginConfig.IsLatConstrained())
+            if (!PluginConfig.guideLinesOnly.Value)
+                for (var index = 0; index < GameMain.localPlanet.modData.Length << 1; ++index)
                 {
-                    var latLonForModIndex = _reformIndexInfoProvider.GetForModIndex(index);
-                    if (latLonForModIndex.Equals(LatLon.Empty))
+                    if (PluginConfig.IsLatConstrained())
                     {
-                        LogNTimes("No coord mapped to data index for {0}", 15, index);
-                        continue;
+                        var latLonForModIndex = _reformIndexInfoProvider.GetForModIndex(index);
+                        if (latLonForModIndex.Equals(LatLon.Empty))
+                        {
+                            LogNTimes("No coord mapped to data index for {0}", 15, index);
+                            continue;
+                        }
+
+                        if (PluginConfig.LatitudeOutOfBounds(latLonForModIndex.Lat))
+                        {
+                            continue;
+                        }
+
+                        if (firstLatLeveled < 0)
+                        {
+                            firstLatLeveled = (int)latLonForModIndex.Lat;
+                            firstLongLeveled = (int)latLonForModIndex.Long;
+                            firstIndex = index;
+                        }
                     }
 
-                    if (PluginConfig.LatitudeOutOfBounds(latLonForModIndex.Lat))
-                    {
-                        continue;
-                    }
-
-                    if (firstLatLeveled < 0)
-                    {
-                        firstLatLeveled = (int)latLonForModIndex.Lat;
-                        firstLongLeveled = (int)latLonForModIndex.Long;
-                        firstIndex = index;
-                    }
+                    levelCount++;
+                    GameMain.localPlanet.AddHeightMapModLevel(index, 3);
                 }
-
-                levelCount++;
-                GameMain.localPlanet.AddHeightMapModLevel(index, 3);
-            }
 
             Debug(
                 $"leveled {levelCount} points for {PluginConfig.minLatitude.Value} {PluginConfig.maxLatitude.Value}. First ({firstLatLeveled}, {firstLongLeveled}) ndx: {firstIndex}");
@@ -349,7 +349,11 @@ namespace Bulldozer
                     }
                 }
 
-                instance._ui.Show();
+                if (GameMain.sandboxToolsEnabled)
+                {
+                    instance._ui.Hide();
+                } else 
+                    instance._ui.Show();
             }
         }
 
@@ -373,9 +377,8 @@ namespace Bulldozer
                     GameMain.mainPlayer.controller.actionBuild.reformTool._Close();
                 }));
 
-                if (WreckingBall.IsRunning() || HonestLeveler.IsRunning())
+                if (WreckingBall.IsRunning())
                 {
-                    HonestLeveler.Stop();
                     WreckingBall.Stop();
                     LogAndPopupMessage("Stopping...");
                     _ui.countText.text = "0";
@@ -460,6 +463,10 @@ namespace Bulldozer
                 if (PluginConfig.IsLatConstrained())
                 {
                     popupMessage += "\nAdd foundation to locations in Selected Latitudes";
+                } 
+                else if (PluginConfig.guideLinesOnly.Value)
+                {
+                    popupMessage += "\nAdd foundation needed to paint guidelines";
                 }
                 else
                 {

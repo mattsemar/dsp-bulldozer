@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Text;
+using UnityEngine;
 
 namespace Bulldozer.SelectiveDecoration
 {
@@ -65,7 +66,7 @@ namespace Bulldozer.SelectiveDecoration
             _decorators.Clear();
         }
 
-        private DecorationConfig DecoratorForLocation(LatLon location)
+        public DecorationConfig DecoratorForLocation(LatLon location)
         {
             foreach (var decorator in _decorators)
             {
@@ -92,6 +93,98 @@ namespace Bulldozer.SelectiveDecoration
             }
 
             return sb.ToString();
+        }
+
+        public SelectivePlanetPainter Flatten()
+        {
+            if (!PluginConfig.guideLinesOnly.Value)
+                return this;
+            // var knownValues = LatLon.GetKnownValues();
+            // foreach (var latLon in knownValues)
+            // {
+            //     if (ShouldPave(latLon))
+            //     {
+            //         var position = GeoUtil.LatLonToPosition(latLon.Lat, latLon.Long, GameMain.localPlanet.realRadius);
+            //
+            //         GameMain.localPlanet.factory.FlattenTerrain(position, Quaternion.identity, new Bounds(position, Vector3.one * 100));
+            //     }
+            // }
+            for (var index = 0; index < GameMain.localPlanet.modData.Length << 1; ++index)
+            {
+                var latLonForModIndex = _reformIndexInfoProvider.GetForModIndex(index);
+                if (latLonForModIndex.Equals(LatLon.Empty))
+                {
+                    Log.Warn($"No coord mapped to data index for {index}");
+                    GameMain.localPlanet.AddHeightMapModLevel(index, 3);
+                    continue;
+                }
+            
+                if (PluginConfig.LatitudeOutOfBounds(latLonForModIndex.Lat))
+                {
+                    continue;
+                }
+            
+                if (!ShouldPave(latLonForModIndex))
+                {
+                    continue;
+                }
+            
+                GameMain.localPlanet.AddHeightMapModLevel(index, 3);
+            }
+
+            return this;
+        }
+
+
+        private bool ShouldPave(LatLon latLon)
+        {
+            var decoration = DecoratorForLocation(latLon);
+            if (!decoration.IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(-1, -1)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(-1, 0)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(-1, 1)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(0, -1)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(0, 1)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(1, -1)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(1, 0)).IsNone())
+            {
+                return true;
+            }
+            
+            if (!DecoratorForLocation(latLon.Offset(1, 1)).IsNone())
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

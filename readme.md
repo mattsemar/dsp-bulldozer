@@ -41,6 +41,10 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.1.6
+Bugfix: Hide UI when sandbox tools are enabled 
+Update: Added some basic support for Bulldoze mode where only guidelines are added. Incomplete, use at your own risk
+
 #### v1.1.5
 Update: Make guidelines foundation type match FoundationDecorationMode setting (when it can be resolved to paint or decorate) (thanks PiggyWhiskey on GitHub)
 Bugfix: Fix bug in factory teardown when factory has modded items on belts but mod that added item is no longer installed  

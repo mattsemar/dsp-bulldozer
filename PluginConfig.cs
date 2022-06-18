@@ -77,6 +77,7 @@ namespace Bulldozer
 
         public static ConfigEntry<BuryVeinMode> buryVeinMode;
         public static ConfigEntry<FoundationDecorationMode> foundationDecorationMode;
+        public static ConfigEntry<bool> guideLinesOnly;
 
         public static ConfigEntry<bool> removeVegetation;
         public static ConfigEntry<bool> deleteFactoryTrash;
@@ -100,7 +101,6 @@ namespace Bulldozer
                     new AcceptableValueRange<int>(-90, 90)));
             minLatitude.SettingChanged += OnMinLatitudeChange;
             maxLatitude.SettingChanged += OnMaxLatitudeChange;
-
 
             workItemsPerFrame = configFile.Bind("Performance", "WorkItemsPerFrame", 1,
                 new ConfigDescription("Number of actions attempted per Frame. Default value is 1 (minimum since 0 would not do anything other than queue up work). " +
@@ -159,6 +159,9 @@ namespace Bulldozer
             enableRegionColor = configFile.Bind("CustomColors", "Enable Region Color", false,
                 "Enable painting colors based on coordinates");
             regionColors = configFile.Bind("UIOnly", "Region Colors JSON", "", "Not for editing, use UI to define values");
+
+            guideLinesOnly = configFile.Bind("Decoration", "GuideLinesOnly",false,
+                "Only add guidelines, don't pave entire planet");
 
             foundationDecorationMode = configFile.Bind("Decoration", "FoundationDecorationMode", FoundationDecorationMode.Tool,
                 "Change to have a permanent setting instead of tracking the game's current config");
@@ -251,6 +254,8 @@ namespace Bulldozer
             if (IsLatConstrained())
                 return true;
             if (enableRegionColor.Value)
+                return true;
+            if (guideLinesOnly.Value)
                 return true;
             if (!addGuideLines.Value)
                 return false;

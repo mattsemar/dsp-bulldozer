@@ -92,8 +92,9 @@ namespace Bulldozer
                 return LatLon.Empty;
             }
 
-            _llModLookup.TryGetValue(index, out var result);
-            return result;
+            if (_llModLookup.TryGetValue(index, out var result))
+                return result;
+            return LatLon.Empty;
         }
 
         public void DoInitWork(PlanetData planetData)

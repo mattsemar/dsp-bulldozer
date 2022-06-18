@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace Bulldozer
@@ -96,6 +97,25 @@ namespace Bulldozer
         public override string ToString()
         {
             return $"{Lat},{Long}";
+        }
+
+        public LatLon Offset(int latOffset, int lonOffset)
+        {
+            return FromCoords(Lat + latOffset, Long + lonOffset, Precision);
+        }
+
+        public static HashSet<LatLon> GetKnownValues()
+        {
+            var result = new HashSet<LatLon>();
+            foreach (var lonLookup in PoolLatToLonToInstance.Values)
+            {
+                foreach (var value in lonLookup.Values)
+                {
+                    result.Add(value);
+                }
+            }
+
+            return result;
         }
     }
 }

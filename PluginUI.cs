@@ -171,6 +171,10 @@ namespace Bulldozer
             InitAlterVeinsCheckbox(environmentModificationContainer);
             InitDestroyMachinesCheckbox(environmentModificationContainer);
             InitConfigButton(environmentModificationContainer);
+            if (GameMain.sandboxToolsEnabled)
+            {
+                Hide();
+            }
         }
 
         private void InitActionButton(GameObject button1, Action<int> action)
