@@ -43,7 +43,6 @@ namespace Bulldozer
         // use to track whether checkbox needs to be synced
         private bool _drawEquatorField = true;
         private Image _iconImage;
-        private GameObject _newSeparator;
 
         private bool _techUnlocked;
         private bool _readyToGo;
@@ -56,6 +55,10 @@ namespace Bulldozer
         private Text hover;
         private UIButton mainActionButton;
         public int initPercent;
+        private RectTransform buttonOneRectTransform;
+        private GameObject AlterVeinsCheck;
+        private GameObject DestroyMachinesCheck;
+        private GameObject ConfigButton;
 
         public bool TechUnlockedState
         {
@@ -212,11 +215,13 @@ namespace Bulldozer
 
         private void InitActionButton(GameObject buttonToCopy, Action<int> action)
         {
-            var rectTransform = buttonToCopy.gameObject.GetComponent<RectTransform>();
+            buttonOneRectTransform = buttonToCopy.gameObject.GetComponent<RectTransform>();
             countText = null;
-            ResetButtonPos(rectTransform);
-            rectTransform.anchoredPosition = new Vector2(rectTransform.anchoredPosition.x - rectTransform.sizeDelta.x, rectTransform.anchoredPosition.y);
-            BulldozeButton = CopyButton(buttonToCopy.GetComponent<RectTransform>(), Vector2.right * (5 + buttonToCopy.GetComponent<RectTransform>().sizeDelta.x), out countText,
+            ResetButtonPos(buttonOneRectTransform);
+             
+            if (GameMain.sandboxToolsEnabled)
+                buttonOneRectTransform.anchoredPosition = new Vector2((float)(buttonOneRectTransform.anchoredPosition.x - buttonOneRectTransform.sizeDelta.x / 1.5), buttonOneRectTransform.anchoredPosition.y);
+            BulldozeButton = CopyButton(buttonOneRectTransform, Vector2.right * (buttonOneRectTransform.sizeDelta.x), out countText,
                 Helper.GetSprite("bulldoze"), action);
             gameObjectsToDestroy.Add(BulldozeButton.gameObject);
             PaveActionButton = BulldozeButton.GetComponent<UIButton>();
@@ -246,6 +251,7 @@ namespace Bulldozer
             drawEquatorCheckboxButton = rect.gameObject.AddComponent<CheckboxControl>();
             drawEquatorCheckboxButton.HoverText = "Add painted guidelines at various locations (equator, tropics, meridians configurable)";
             drawEquatorCheckboxButton.onClick += OnDrawEquatorCheckClick;
+            gameObjectsToDestroy.Add(drawEquatorCheckboxButton.gameObject);
 
             if (countText != null)
             {
@@ -267,26 +273,13 @@ namespace Bulldozer
             gameObjectsToDestroy.Add(CheckBoxImage.gameObject);
 
             CheckBoxImage.sprite = PluginConfig.addGuideLines.Value ? spriteChecked : spriteUnChecked;
-            var sepLine = GameObject.Find("UI Root/Overlay Canvas/In Game/Function Panel/Build Menu/reform-group/sep-line-left-0");
-            try
-            {
-                _newSeparator = Instantiate(sepLine, environmentModificationContainer.transform);
-                var button1Rect = button1.GetComponent<RectTransform>();
-                _newSeparator.GetComponent<RectTransform>().anchoredPosition = new Vector2(button1Rect.anchoredPosition.x + button1Rect.sizeDelta.x - 25,
-                    sepLine.GetComponent<RectTransform>().anchoredPosition.y);
-                gameObjectsToDestroy.Add(_newSeparator.gameObject);
-            }
-            catch (Exception e)
-            {
-                logger.LogWarning($"exception in sep line {e.Message}");
-            }
         }
 
         private void InitAlterVeinsCheckbox(RectTransform environmentModificationContainer)
         {
-            var repaveCheck = new GameObject("Repave");
-            gameObjectsToDestroy.Add(repaveCheck);
-            RectTransform rect = repaveCheck.AddComponent<RectTransform>();
+            AlterVeinsCheck = new GameObject("Repave");
+            gameObjectsToDestroy.Add(AlterVeinsCheck);
+            RectTransform rect = AlterVeinsCheck.AddComponent<RectTransform>();
             rect.SetParent(environmentModificationContainer.transform, false);
 
             rect.anchorMax = new Vector2(0, 1);
@@ -322,9 +315,9 @@ namespace Bulldozer
 
         private void InitDestroyMachinesCheckbox(RectTransform environmentModificationContainer)
         {
-            var destroyCheck = new GameObject("DestroyMachines");
-            gameObjectsToDestroy.Add(destroyCheck);
-            RectTransform rect = destroyCheck.AddComponent<RectTransform>();
+            DestroyMachinesCheck = new GameObject("DestroyMachines");
+            gameObjectsToDestroy.Add(DestroyMachinesCheck);
+            RectTransform rect = DestroyMachinesCheck.AddComponent<RectTransform>();
             rect.SetParent(environmentModificationContainer.transform, false);
 
             rect.anchorMax = new Vector2(0, 1);
@@ -360,9 +353,9 @@ namespace Bulldozer
 
         private float GetCheckBoxXValue()
         {
-            if (BulldozeButton != null)
+            if (BulldozeButton != null && GameMain.sandboxToolsEnabled)
             {
-                return -BulldozeButton.anchoredPosition.x + BulldozeButton.sizeDelta.x + 10;
+                return 310;
             }
 
             return 350;
@@ -370,16 +363,16 @@ namespace Bulldozer
 
         private void InitConfigButton(RectTransform environmentModificationContainer)
         {
-            var configBtn = new GameObject("Config");
-            gameObjectsToDestroy.Add(configBtn);
-            var rect = configBtn.AddComponent<RectTransform>();
+            ConfigButton = new GameObject("Config");
+            gameObjectsToDestroy.Add(ConfigButton);
+            var rect = ConfigButton.AddComponent<RectTransform>();
             rect.SetParent(environmentModificationContainer.transform, false);
 
             rect.anchorMax = new Vector2(0, 1);
             rect.anchorMin = new Vector2(0, 1);
             rect.sizeDelta = new Vector2(20, 20);
             rect.pivot = new Vector2(0, 0.5f);
-            rect.anchoredPosition = new Vector2(GetCheckBoxXValue() + 25, -120);
+            rect.anchoredPosition = new Vector2(GetCheckBoxXValue() + 18, -120);
             var invokeConfig = rect.gameObject.AddComponent<CheckboxControl>();
             invokeConfig.HoverText = "Open config";
 
@@ -429,12 +422,10 @@ namespace Bulldozer
         {
             var copied = Instantiate(rectTransform, rectTransform.transform.parent, false);
             var copiedRectTransform = copied.GetComponent<RectTransform>();
-            var originalRectTransform = rectTransform.GetComponent<RectTransform>();
-
-            copiedRectTransform.anchorMin = originalRectTransform.anchorMin;
-            copiedRectTransform.anchorMax = originalRectTransform.anchorMax;
-            copiedRectTransform.sizeDelta = originalRectTransform.sizeDelta;
-            copiedRectTransform.anchoredPosition = originalRectTransform.anchoredPosition + positionDelta;
+            copiedRectTransform.anchorMin = rectTransform.anchorMin;
+            copiedRectTransform.anchorMax = rectTransform.anchorMax;
+            copiedRectTransform.sizeDelta = rectTransform.sizeDelta;
+            copiedRectTransform.anchoredPosition = rectTransform.anchoredPosition + positionDelta;
 
 
             _bulldozeIcon = copiedRectTransform.transform.Find("icon");
@@ -462,7 +453,6 @@ namespace Bulldozer
             mainActionButton = copiedRectTransform.GetComponentInChildren<UIButton>();
             if (mainActionButton != null)
             {
-                originalRectTransform.GetComponentInChildren<UIButton>();
                 mainActionButton.tips.tipTitle = "Bulldoze";
                 mainActionButton.tips.tipText = ConstructTipMessageDependentOnConfig();
                 mainActionButton.tips.offset = new Vector2(mainActionButton.tips.offset.x, mainActionButton.tips.offset.y + 100);
@@ -488,8 +478,22 @@ namespace Bulldozer
             return copied;
         }
 
-        public void Show()
+        public void Show(bool inittedThisTime = false)
         {
+            if (GameMain.sandboxToolsEnabled)
+            {
+                if (!inittedThisTime)
+                    buttonOneRectTransform.anchoredPosition = new Vector2((float)(buttonOneRectTransform.anchoredPosition.x - buttonOneRectTransform.sizeDelta.x / 1.5),
+                        buttonOneRectTransform.anchoredPosition.y);
+                RepositionElements();
+            }
+            else if (buttonOneRectTransform != null)
+            {
+                ResetButtonPos(buttonOneRectTransform);
+                BulldozeButton.anchoredPosition = buttonOneRectTransform.anchoredPosition + Vector2.right * (5 + buttonOneRectTransform.GetComponent<RectTransform>().sizeDelta.x);
+                RepositionElements();
+            }
+
             BulldozeButton.gameObject.SetActive(true);
             PaveActionButton.gameObject.SetActive(true);
             CheckBoxImage.gameObject.SetActive(true);
@@ -503,8 +507,31 @@ namespace Bulldozer
             ConfigIconImage.gameObject.SetActive(true);
         }
 
+        private void RepositionElements()
+        {
+            BulldozeButton.anchoredPosition = buttonOneRectTransform.anchoredPosition + Vector2.right * (5 + buttonOneRectTransform.GetComponent<RectTransform>().sizeDelta.x);
+            {
+                RectTransform drawEquatorRect = DrawEquatorCheck.GetComponent<RectTransform>();
+                drawEquatorRect.anchoredPosition = new Vector2(GetCheckBoxXValue(), drawEquatorRect.anchoredPosition.y);
+            }
+            {
+                RectTransform rect = AlterVeinsCheck.GetComponent<RectTransform>();
+                rect.anchoredPosition = new Vector2(GetCheckBoxXValue(), -105);
+            }
+            {
+                RectTransform rect = DestroyMachinesCheck.GetComponent<RectTransform>();
+                rect.anchoredPosition = new Vector2(GetCheckBoxXValue(), -120);
+            }
+            {
+                RectTransform rect = ConfigButton.GetComponent<RectTransform>();
+                rect.anchoredPosition = new Vector2(GetCheckBoxXValue() + 19, -120);
+            }
+        }
+
         public void Hide()
         {
+            if (GameMain.sandboxToolsEnabled && buttonOneRectTransform != null)
+                ResetButtonPos(buttonOneRectTransform);
             BulldozeButton.gameObject.SetActive(false);
             PaveActionButton.gameObject.SetActive(false);
             CheckBoxImage.gameObject.SetActive(false);

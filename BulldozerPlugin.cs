@@ -38,6 +38,9 @@ namespace Bulldozer
             _harmony.PatchAll(typeof(PluginConfigWindow));
             PluginConfig.InitConfig(Config);
             Debug("Bulldozer Plugin Loaded");
+#if DEBUG
+            Debug("Debug build enabled");
+#endif
         }
 
         private void Update()
@@ -81,7 +84,8 @@ namespace Bulldozer
 
         private void LateUpdate()
         {
-            UIRoot.instance.uiGame.buildMenu.reformAllButton.gameObject.SetActive(false);
+            if (GameMain.sandboxToolsEnabled && UIRoot.instance.uiGame.buildMenu.currentCategory == 9)
+                UIRoot.instance.uiGame.buildMenu.reformAllButton.gameObject.SetActive(false);
         }
 
         private void OnDestroy()
@@ -91,6 +95,8 @@ namespace Bulldozer
             if (_ui != null)
             {
                 _ui.Unload();
+                Destroy(_ui);
+                _ui = null;
             }
 
             _reformIndexInfoProvider?.PlanetChanged(null);
@@ -333,9 +339,11 @@ namespace Bulldozer
                 return;
             }
 
+            var inittedThisTime = false;
             if (instance._ui == null)
             {
                 instance.InitUi(uiBuildMenu);
+                inittedThisTime = true;
             }
             else
             {
@@ -353,8 +361,8 @@ namespace Bulldozer
                     }
                 }
 
-                instance._ui.Show();
             }
+            instance._ui.Show(inittedThisTime);
         }
 
         private void InitUi(UIBuildMenu uiBuildMenu)
@@ -609,6 +617,16 @@ namespace Bulldozer
         {
             if (instance != null && instance._reformIndexInfoProvider != null)
                 instance._reformIndexInfoProvider.PlanetChanged(null);
+        }
+        [HarmonyPostfix]
+        [HarmonyPatch(typeof(GameMain), nameof(GameMain.End))]
+        public static void OnGameEnd()
+        {
+            if (instance != null && instance._ui != null)
+            {
+                instance._ui.Hide();
+                instance._reformIndexInfoProvider?.PlanetChanged(null);
+            }
         }
     }
 }

@@ -41,6 +41,9 @@ Thanks to runeranger, Madac, Veretragna, Narceen & Bem on Discord for helpful su
 
 ## Changelog
 
+#### v1.1.8
+Bugfix: Fix button position when not in sandbox mode and for other tool categories
+
 #### v1.1.7
 * Update: Restore UI when sandbox tools are enabled. 'Reform Full Planet' button provided by game is hidden 
 * Update: GuideLinesOnly mode now supports Honest and HalfCheat foundation modes but does not yet consume soil pile    

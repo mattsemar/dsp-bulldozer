@@ -20,7 +20,6 @@ namespace Bulldozer
         private static Texture2D _tooltipBg;
         private static Dictionary<Color, Texture2D> _customColorTextures = new();
 
-        private static int _loggedMessageCount = 0;
         private static readonly Dictionary<string, int> previousSelections = new();
         private static string _savedGUISkin;
         private static GUISkin _savedGUISkinObj;

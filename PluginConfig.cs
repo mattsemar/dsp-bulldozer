@@ -189,7 +189,9 @@ namespace Bulldozer
                 "Don't edit, this property backs the checkbox in the UI. If enabled painted lines at certain points on planet will be added");
             originalReformButtonPosition = configFile.Bind("UIOnly", "OriginalReformButtonPosition", "0,0",
                 "Track where the button was before we started messing with it");
-
+#if RELEASE
+            originalReformButtonPosition.Value = "0,0";
+#endif
         }
 
         private static void OnMaxLatitudeChange(object sender, EventArgs e)
