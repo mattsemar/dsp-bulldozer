@@ -98,7 +98,7 @@ namespace Bulldozer
             return $"{Lat},{Long}";
         }
 
-        public LatLon Offset(int latOffset, int lonOffset)
+        public LatLon Offset(float latOffset, float lonOffset)
         {
             return FromCoords(Lat + latOffset, Long + lonOffset, Precision);
         }

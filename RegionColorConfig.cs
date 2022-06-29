@@ -7,10 +7,10 @@ namespace Bulldozer
 {
     public class RegionColorConfig
     {
-        public int minLatitude;
-        public int maxLatitude;
-        public int minLongitude;
-        public int maxLongitude;
+        public float minLatitude;
+        public float maxLatitude;
+        public float minLongitude;
+        public float maxLongitude;
         public bool mirror;
         public int colorIndex;
 

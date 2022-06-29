@@ -324,25 +324,21 @@ namespace Bulldozer
             }
         }
 
-        private static void DrawSetting(string title, int minVal, int maxVal, ref int current, int actualMin = -1)
+        private static void DrawSetting(string title, float minVal, float maxVal, ref float current, float actualMin = -1)
         {
             GUILayout.Label(title);
 
-            var converted = (float)Convert.ToDouble(current, CultureInfo.InvariantCulture);
-            var leftValue = (float)Convert.ToDouble(minVal, CultureInfo.InvariantCulture);
-            var rightValue = (float)Convert.ToDouble(maxVal, CultureInfo.InvariantCulture);
-
-            var result = GUILayout.HorizontalSlider(converted, leftValue, rightValue, GUILayout.MinWidth(200));
-            int newVal = current;
-            if (Math.Abs(result - converted) > Mathf.Abs(rightValue - leftValue) / 1000)
+            var result = GUILayout.HorizontalSlider(current, minVal, maxVal, GUILayout.MinWidth(200));
+            float newVal = current;
+            if (Math.Abs(result - current) > Mathf.Abs(maxVal - minVal) / 1000)
             {
-                newVal = (int)result;
+                newVal = Mathf.Round(result / 0.36f) * 0.36f;
             }
 
-            var strResult = GUILayout.TextField(newVal.ToString(CultureInfo.CurrentCulture), GUILayout.Width(50));
+            var strResult = GUILayout.TextField(newVal.ToString("F2", CultureInfo.CurrentCulture), GUILayout.Width(50));
             try
             {
-                var updatedFromTextBox = int.Parse(strResult, NumberStyles.Any);
+                var updatedFromTextBox = float.Parse(strResult, NumberStyles.Any);
                 if (updatedFromTextBox >= minVal && updatedFromTextBox <= maxVal)
                 {
                     newVal = updatedFromTextBox;
