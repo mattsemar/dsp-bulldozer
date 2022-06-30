@@ -13,7 +13,7 @@ namespace Bulldozer
         public float Lat => Precision == 1 ? _lat : _lat / (float) Precision;
 
         public float Long => Precision == 1 ? _lng : _lng / (float) Precision;
-        public static LatLon Empty => new (-1000, -1000, 1);
+        public static LatLon Empty => new (0, 0, 0);
 
         private static readonly Dictionary<int, Dictionary<int, LatLon>> PoolLatToLonToInstance = new();
         public readonly int Precision;
@@ -44,8 +44,8 @@ namespace Bulldozer
                     throw new InvalidDataException("Invalid precision multiple " + precisionMultiple);
             }
 
-            int newLat = lat < 0 ? Mathf.CeilToInt((float)lat * precisionMultiple) : Mathf.FloorToInt((float)lat * precisionMultiple);
-            int newLon = lon < 0 ? Mathf.CeilToInt((float)lon * precisionMultiple) : Mathf.FloorToInt((float)lon * precisionMultiple);
+            int newLat = Mathf.RoundToInt((float)lat * precisionMultiple);
+            int newLon = Mathf.RoundToInt((float)lon * precisionMultiple);
             if (!PoolLatToLonToInstance.TryGetValue(newLat, out var lonLookup))
             {
                 lonLookup = new Dictionary<int, LatLon>();
@@ -62,7 +62,7 @@ namespace Bulldozer
 
         public bool Equals(LatLon other)
         {
-            return _lat == other._lat && _lng == other._lng;
+            return _lat == other._lat && _lng == other._lng && Precision == other.Precision;
         }
 
         public override bool Equals(object obj)
@@ -90,7 +90,7 @@ namespace Bulldozer
 
         public bool IsEmpty()
         {
-            return Precision == 0 || _lat == Empty._lat && _lng == Empty._lng;
+            return Precision == 0;
         }
 
         public override string ToString()

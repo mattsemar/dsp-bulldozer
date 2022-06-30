@@ -18,7 +18,7 @@ namespace Bulldozer
         private readonly HashSet<LatLon> _meridians = new();
         public PlatformSystem platformSystem;
         private bool _lookupsCreated;
-        private float _latLookupWorkItemIndex = -89.9f;
+        private float _latLookupWorkItemIndex;
         private int _initUpdateCounter;
         private int _planetId;
         private int prevLength = -1;
@@ -27,6 +27,7 @@ namespace Bulldozer
         {
             this.platformSystem = platformSystem;
             _planetId = platformSystem.planet.id;
+            _latLookupWorkItemIndex = -90f + 90f / platformSystem?.latitudeCount ?? 500f;
         }
 
         public int PlanetId => _planetId;
@@ -37,13 +38,14 @@ namespace Bulldozer
             _llLookup.Clear();
             Array.Clear(_llModLookup, 0, _llLookup.Count);
             _tropicsLatitudes.Clear();
+            prevLength = -1;
             _equatorLatitudes[0] = LatLon.Empty;
             _equatorLatitudes[1] = LatLon.Empty;
             _meridians.Clear();
             _lookupsCreated = false;
             _planetId = planetId;
             platformSystem = newPlatformSystem;
-            _latLookupWorkItemIndex = -89.9f;
+            _latLookupWorkItemIndex = -90f + 90f / platformSystem?.latitudeCount ?? 500f;
             _initUpdateCounter = 0;
         }
 
@@ -124,7 +126,7 @@ namespace Bulldozer
             var planetRawData = platformSystem.planet.data;
             var start = DateTime.Now;
             var maxRuntimeMS = GetMaxRuntimeMS();
-            var latLonPrecision = planetData.realRadius < 250f ? 10 : 10;
+            var latLonPrecision = 1000;
             var latitudeCount = platformSystem.latitudeCount;
             var latDegIncrement = (90 * 2.0f) / latitudeCount;
 
@@ -137,10 +139,15 @@ namespace Bulldozer
                     continue;
                 prevStart = startNdx;
                 var longitudeCounts = endNdxExclusive - startNdx;
-                if (longitudeCounts != prevLength)
+                if (longitudeCounts != prevLength && prevLength >= 0)
                 {
                     // got ourselves a new tropic here
-                    _tropicsLatitudes.Add(LatLon.FromCoords(_latLookupWorkItemIndex, 0, latLonPrecision));
+                    // mark the north side of the tropic in the southern hemisphere and the south side in the northern hemisphere
+                    // it might be better to switch these or add a setting to choose
+                    if (_latLookupWorkItemIndex < 0)
+                        _tropicsLatitudes.Add(LatLon.FromCoords(_latLookupWorkItemIndex, 0, latLonPrecision));
+                    else
+                        _tropicsLatitudes.Add(LatLon.FromCoords(_latLookupWorkItemIndex - latDegIncrement, 0, latLonPrecision));
                 }
 
                 var latCoord = LatLon.FromCoords(_latLookupWorkItemIndex, 0, latLonPrecision);
@@ -173,7 +180,7 @@ namespace Bulldozer
                 {
                     var numLongitudes = (endNdxExclusive - startNdx);
                     // longitudes above this index are in going west from 0
-                    var maxPositiveLongitudeIndex = (endNdxExclusive + startNdx) / 2;
+                    var maxPositiveLongitudeIndex = (endNdxExclusive + startNdx) / 2 - 1;
                     var negCounts = numLongitudes / 2;
                     var degPerIndex = 180f / negCounts;
                     var longMod = numLongitudes / 4;
@@ -181,7 +188,7 @@ namespace Bulldozer
                     {
                         if (desired > maxPositiveLongitudeIndex)
                         {
-                            var longDegrees = degPerIndex * (desired - maxPositiveLongitudeIndex);
+                            var longDegrees = degPerIndex * (desired - maxPositiveLongitudeIndex - 0.5f);
                             _llLookup[desired] = LatLon.FromCoords(_latLookupWorkItemIndex, -longDegrees, latLonPrecision);
 
                             var pos = GeoUtil.LatLonToPosition(_latLookupWorkItemIndex, -longDegrees, platformSystem.planet.realRadius);
@@ -190,7 +197,7 @@ namespace Bulldozer
                         }
                         else
                         {
-                            var longDegrees = degPerIndex * (desired - startNdx);
+                            var longDegrees = degPerIndex * (desired - startNdx + 0.5f);
                             _llLookup[desired] = LatLon.FromCoords(_latLookupWorkItemIndex, longDegrees, latLonPrecision);
                             var pos = GeoUtil.LatLonToPosition(_latLookupWorkItemIndex, longDegrees, platformSystem.planet.realRadius);
                             var currentDataIndex = planetRawData.QueryIndex(pos);
@@ -216,7 +223,7 @@ namespace Bulldozer
                 }
             }
 
-            if (_latLookupWorkItemIndex > 89)
+            if (_latLookupWorkItemIndex >= 90)
             {
                 _lookupsCreated = true;
             }
@@ -249,18 +256,11 @@ namespace Bulldozer
 
         public (int offsetStartIndex, int offsetEndIndex) GetReformIndexesForLatitude(float latDegrees)
         {
-            double latInRads = Mathf.Deg2Rad * latDegrees;
-            var latIndex = (float)(latInRads / (Mathf.PI * 2)) * platformSystem.segment;
-            var scaledLat = Mathf.Round(latIndex * 10f);
-            var absScaledLat = Mathf.Abs(scaledLat);
-            var scaledLatFloat = scaledLat >= 0.0 ? absScaledLat : -absScaledLat;
-            var latitudeSeg = scaledLatFloat / 10f;
-
-            var scaledLatSeg = latitudeSeg > 0.0 ? Mathf.CeilToInt(latitudeSeg * 5f) : Mathf.FloorToInt(latitudeSeg * 5f);
             var latCountsHalf = platformSystem.latitudeCount / 2;
-            var y = scaledLatSeg > 0 ? scaledLatSeg - 1 : latCountsHalf - scaledLatSeg - 1;
-            var startIndex = platformSystem.reformOffsets[y];
-            var unscaledCount = PlatformSystem.DetermineLongitudeSegmentCount(Mathf.FloorToInt(Mathf.Abs(latitudeSeg)), platformSystem.segment);
+            var scaledLat = Mathf.FloorToInt(Mathf.Abs(latDegrees) * platformSystem.latitudeCount / 180f);
+            var latIndex = latDegrees >= 0 ? scaledLat : scaledLat + latCountsHalf;
+            var startIndex = platformSystem.reformOffsets[latIndex];
+            var unscaledCount = PlatformSystem.DetermineLongitudeSegmentCount(scaledLat / 5, platformSystem.segment);
 
             var endIndex = startIndex + unscaledCount * 5;
             return (startIndex, endIndex);
