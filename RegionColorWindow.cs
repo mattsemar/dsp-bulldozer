@@ -171,30 +171,27 @@ namespace Bulldozer
             {
                 _overlapCheckDirty = false;
                 lastOverLapCheckFailed = false;
-                for (int i = -90; i < 90; i++)
+
+                var regions = _regionalColors.GetRegions();
+                for (int i = 0; i < regions.Count - 1; i++)
                 {
-                    for (int j = -180; j < 180; j++)
+                    var aRects = regions[i].GetRects();
+                    for (int j = i + 1; j < regions.Count; j++)
                     {
-                        int matchCount = 0;
-                        List<int> regionMatchingIndex = new List<int>();
+                        var bRects = regions[j].GetRects();
+                        foreach(var a in aRects)
+						{
+                            foreach(var b in bRects)
+							{
+                                if(a.Overlaps(b))
+								{
+                                    lastOverLapCheckFailed = true;
+                                    _lastOverlapCheck = DateTime.Now;
+                                    return;
+								}
+							}
+						}
 
-                        var regions = _regionalColors.GetRegions();
-                        for (int ndx = 0; ndx < regions.Count; ndx++)
-                        {
-                            var region = regions[ndx];
-                            if (region.ContainsPosition(i, j))
-                            {
-                                matchCount++;
-                                regionMatchingIndex.Add(ndx);
-                            }
-                        }
-
-                        if (matchCount > 1)
-                        {
-                            lastOverLapCheckFailed = true;
-                            // var matchingIndexes = string.Join(",", regionMatchingIndex);
-                            // Log.Debug($"overlap on points {i}, {j}, {matchingIndexes}");
-                        }
                     }
                 }
 
@@ -229,7 +226,7 @@ namespace Bulldozer
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            DrawSetting("Max Longitude", -180, 180, ref regionalColor.maxLongitude, regionalColor.minLongitude);
+            DrawSetting("Max Longitude", -180, 180, ref regionalColor.maxLongitude);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
