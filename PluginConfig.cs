@@ -65,7 +65,7 @@ namespace Bulldozer
         public static ConfigEntry<bool> addGuideLinesMeridian;
         public static ConfigEntry<bool> addGuideLinesTropic;
         public static ConfigEntry<bool> addGuideLinesPoles;
-        public static ConfigEntry<int> minorMeridianInterval;
+        public static ConfigEntry<float> minorMeridianInterval;
 
         public static ConfigEntry<int> guideLinesEquatorColor;
         public static ConfigEntry<int> guideLinesTropicColor;
@@ -142,10 +142,10 @@ namespace Bulldozer
                 "Enable/disable of the tropic guidelines individually. No effect if AddGuideLines is disabled");
             addGuideLinesPoles = configFile.Bind("Decoration", "AddGuideLinesPoles", false,
                 "Enable/disable painting polar areas. No effect if AddGuideLines is disabled. Poles are considered first 2 tropics");
-            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0,
+            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0f,
                 new ConfigDescription(
                     "Paint meridians starting at 0 and incrementing by this value. E.g., a value of 10 would add a meridian line every 10 degrees 18, 36 total. 0 to disable",
-                    new AcceptableValueRange<int>(0, 89), "meridians"));
+                    new AcceptableValueRange<float>(0f, 120f), "meridians"));
 
             guideLinesEquatorColor = configFile.Bind("CustomColors", "Equator Color", 7,
                 new ConfigDescription("Index of color in palette to paint equator. Default is green", new AcceptableValueRange<int>(0, 31), "color"));

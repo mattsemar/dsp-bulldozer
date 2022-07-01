@@ -24,7 +24,7 @@
 
             if (PluginConfig.minorMeridianInterval.Value > 0)
             {
-                result.Register(new MinorMeridianPainter());
+                result.Register(new MinorMeridianPainter(reformIndexInfoProvider));
             }
 
             if (PluginConfig.addGuideLinesTropic.Value)

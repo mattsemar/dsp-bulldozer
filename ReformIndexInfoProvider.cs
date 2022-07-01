@@ -11,6 +11,7 @@ namespace Bulldozer
     public class ReformIndexInfoProvider
     {
         private const int LatitudesPerPass = 10;
+        public const int latLonPrecision = 1000;
         private readonly Dictionary<int, LatLon> _llLookup = new();
         private readonly LatLon[] _llModLookup = new LatLon[GameMain.localPlanet.data.modData.Length * 2];
         private readonly HashSet<LatLon> _tropicsLatitudes = new();
@@ -126,7 +127,6 @@ namespace Bulldozer
             var planetRawData = platformSystem.planet.data;
             var start = DateTime.Now;
             var maxRuntimeMS = GetMaxRuntimeMS();
-            var latLonPrecision = 1000;
             var latitudeCount = platformSystem.latitudeCount;
             var latDegIncrement = (90 * 2.0f) / latitudeCount;
 
