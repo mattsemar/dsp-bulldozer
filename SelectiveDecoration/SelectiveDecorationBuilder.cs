@@ -2,7 +2,7 @@
 {
     public static class SelectiveDecorationBuilder
     {
-        public static readonly int POLE_LATITUDE_START = 85;
+        public static readonly float POLE_LATITUDE_START = 84.6f;
         public static SelectivePlanetPainter Build(ReformIndexInfoProvider reformIndexInfoProvider)
         {
             var result = new SelectivePlanetPainter(reformIndexInfoProvider);
@@ -24,7 +24,7 @@
 
             if (PluginConfig.minorMeridianInterval.Value > 0)
             {
-                result.Register(new MinorMeridianPainter());
+                result.Register(new MinorMeridianPainter(reformIndexInfoProvider));
             }
 
             if (PluginConfig.addGuideLinesTropic.Value)

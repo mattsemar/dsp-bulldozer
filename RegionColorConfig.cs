@@ -7,10 +7,10 @@ namespace Bulldozer
 {
     public class RegionColorConfig
     {
-        public int minLatitude;
-        public int maxLatitude;
-        public int minLongitude;
-        public int maxLongitude;
+        public float minLatitude;
+        public float maxLatitude;
+        public float minLongitude;
+        public float maxLongitude;
         public bool mirror;
         public int colorIndex;
 
@@ -18,36 +18,54 @@ namespace Bulldozer
         {
             bool allLatitudes = minLatitude == maxLatitude;
             bool allLongs = minLongitude == maxLongitude;
-            if (allLatitudes && allLongs)
-            {
-                return true;
+            
+            if (!(allLatitudes || (minLatitude <= lat && maxLatitude >= lat) || mirror && (-minLatitude >= lat && -maxLatitude <= lat)))
+                return false;
+            if (minLongitude <= maxLongitude)
+                return allLongs || minLongitude <= lng && maxLongitude >= lng;
+            else
+                return !(maxLongitude < lng && minLongitude > lng);
+        }
+
+        public List<Rect> GetRects()
+		{
+            var result = new List<Rect>();
+
+            var minLat = minLatitude;
+            var maxLat = maxLatitude;
+            var minLng = minLongitude;
+            var maxLng = maxLongitude;
+
+            if(minLatitude == maxLatitude)
+			{
+                minLat = -90;
+                maxLat = 90;
+			}
+            if(minLongitude == maxLongitude)
+			{
+                minLng = -180;
+                maxLng = 180;
+			}
+
+            var height = maxLat - minLat;
+            if(minLongitude > maxLongitude)
+			{
+                result.Add(new Rect(minLng, minLat, 180 - minLng, height));
+                result.Add(new Rect(-180, minLat, maxLng + 180, height));
+                if (mirror)
+                {
+                    result.Add(new Rect(minLng, -maxLat, 180 - minLng, height));
+                    result.Add(new Rect(-180, -maxLat, maxLng + 180, height));
+                }
+            }
+            else
+			{
+                result.Add(new Rect(minLng, minLat, maxLng - minLng, height));
+                if(mirror)
+                    result.Add(new Rect(minLng, -maxLat, maxLng - minLng, height));
             }
 
-            if (!allLatitudes && allLongs)
-            {
-                
-                bool defaultLatsMatch = (minLatitude <= lat && maxLatitude >= lat);
-                if (defaultLatsMatch)
-                    return true;
-                if (mirror)
-                    return (-minLatitude >= lat && -maxLatitude <= lat);
-                return false;
-            }
-            if (allLatitudes && !allLongs)
-            {
-                
-                bool defaultLonsMatch = (minLongitude <= lng && maxLongitude >= lng);
-                if (defaultLonsMatch)
-                    return true;
-                return false;
-            }
-            
-            if ((minLatitude <= lat && maxLatitude >= lat) && (minLongitude <= lng && maxLongitude >= lng))
-                return true;
-            if (!mirror)
-                return false;
-            return (-minLatitude >= lat && -maxLatitude <= lat)
-                &&  minLongitude <= lng && maxLongitude >= lng;
+            return result;
         }
     }
 

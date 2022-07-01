@@ -6,61 +6,26 @@ namespace Bulldozer.SelectiveDecoration
 {
     public class MinorMeridianPainter : ISelectivePlanetDecorator
     {
-        private readonly HashSet<int> _minorMeridianLongitudes = new();
+        private readonly HashSet<LatLon> _minorMeridianPoints = new();
 
         private static DecorationConfig _minorMeridianConfig;
+        private readonly ReformIndexInfoProvider infoProvider;
 
-
-        public MinorMeridianPainter()
+        public MinorMeridianPainter(ReformIndexInfoProvider reformIndexInfoProvider)
         {
+            infoProvider = reformIndexInfoProvider;
             _minorMeridianConfig = new DecorationConfig(PluginConfig.guideLinesMinorMeridianColor.Value);
             InitMeridianLongitudes();
         }
 
-        private LatLon _lastRequest = LatLon.Empty;
-        private bool _lastResult;
-
         public DecorationConfig GetDecorationForLocation(LatLon location)
         {
-            if (Math.Abs(location.Lat) > SelectiveDecorationBuilder.POLE_LATITUDE_START)
-                return DecorationConfig.None;
-            if (DistanceFromMajorMeridian(location.Long) < 5)
-                return DecorationConfig.None;
-            if (location.Long < 0)
-            {
-                if (_minorMeridianLongitudes.Contains(Mathf.CeilToInt(location.Long)))
-                {
-                    _lastRequest = location;
-                    _lastResult = true;
-                    return _minorMeridianConfig;
-                }
-            }
-            else if (_minorMeridianLongitudes.Contains(Mathf.FloorToInt(location.Long)))
-            {
-                _lastRequest = location;
-                _lastResult = true;
+            // This check probably isn't needed now that the lines aren't thick and misaligned, but I left the logic intact just in case.
+            //if (DistanceFromMajorMeridian(location.Long) < 5)
+            //    return DecorationConfig.None;
+
+            if (_minorMeridianPoints.Contains(location))
                 return _minorMeridianConfig;
-            }
-
-            // before returning false see if there's a point in between the last request and this one that would work
-            if (_lastRequest.RawLat() == location.RawLat() && !_lastResult)
-            {
-                var delta = Mathf.Abs(_lastRequest.Long - location.Long) / 3.0f;
-                for (int j = 1; j <= 3; j++)
-                {
-                    var inBetween = Mathf.MoveTowards(_lastRequest.Long, location.Long, delta * j);
-
-                    if (_minorMeridianLongitudes.Contains((int)inBetween))
-                    {
-                        _lastRequest = location;
-                        _lastResult = true;
-                        return _minorMeridianConfig;
-                    }
-                }
-            }
-
-            _lastRequest = location;
-            _lastResult = false;
 
             return DecorationConfig.None;
         }
@@ -80,19 +45,37 @@ namespace Bulldozer.SelectiveDecoration
         private void InitMeridianLongitudes()
         {
             var interval = PluginConfig.minorMeridianInterval.Value;
-            for (int i = 0; i < 180; i += interval)
-            {
-                _minorMeridianLongitudes.Add(i);
+            var segment = infoProvider.platformSystem.segment;
+            var precision = ReformIndexInfoProvider.latLonPrecision;
+            var latitudeCount = infoProvider.platformSystem.latitudeCount;
+            var latDegIncrement = (90 * 2.0f) / latitudeCount;
+
+            for (float lat = latDegIncrement / 2; lat <= SelectiveDecorationBuilder.POLE_LATITUDE_START; lat += latDegIncrement)
+			{
+                var latSegment = Mathf.FloorToInt(lat * latitudeCount / 180f) / 5;
+                var lonDivisions = PlatformSystem.DetermineLongitudeSegmentCount(latSegment, segment) * 5;
+                var lonStep = 360f / lonDivisions;
+
+                // arbitrary value of just over half a tile so that if the meridian is right between two tiles it gets both
+                // this could be used to adjust thickness of the line and might be better as a config option in the future
+                var proximityThreshold = lonStep * 0.501f; 
+
+                for (float meridianLon = 0f; meridianLon <= 180f; meridianLon += interval)
+                {
+                    var minLon = (Mathf.Round((meridianLon - proximityThreshold) / lonStep) + 0.5) * lonStep;
+                    var maxLon = (Mathf.Round((meridianLon + proximityThreshold) / lonStep) - 0.5) * lonStep;
+
+                    for(var tileLon = minLon; tileLon <= maxLon; tileLon += lonStep)
+					{
+                        _minorMeridianPoints.Add(LatLon.FromCoords(lat, tileLon, precision));
+                        _minorMeridianPoints.Add(LatLon.FromCoords(-lat, tileLon, precision));
+                        _minorMeridianPoints.Add(LatLon.FromCoords(lat, -tileLon, precision));
+                        _minorMeridianPoints.Add(LatLon.FromCoords(-lat, -tileLon, precision));
+                    }
+                }
             }
 
-
-            for (int i = 0 - interval; i > -180; i -= interval)
-            {
-                _minorMeridianLongitudes.Add(i);
-            }
-
-            var meridianVals = string.Join(",", _minorMeridianLongitudes);
-            Log.Debug($"minor meridians for {interval} are {meridianVals}");
+            Log.Debug($"Marked {_minorMeridianPoints.Count} tiles as minor meridians. Average thickness: {_minorMeridianPoints.Count / Mathf.Floor(360f / interval) / latitudeCount}");
         }
 
         public string ActionSummary()

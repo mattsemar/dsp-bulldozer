@@ -191,6 +191,7 @@ namespace Bulldozer
             }
         }
 
+        // This version doesn't seem to ever be called so I didn't bother to update it with the new system used in MinorMeridianPainter.cs
         private static void PaintMinorMeridians(PlatformSystem platformSystem)
         {
             var planetRadius = platformSystem.planet.radius;
@@ -208,7 +209,7 @@ namespace Bulldozer
                 if (PluginConfig.LatitudeOutOfBounds(lat))
                     continue;
 
-                for (var meridianOffset = -180; meridianOffset < 180; meridianOffset += interval)
+                for (var meridianOffset = -180; meridianOffset < 180; meridianOffset += Mathf.RoundToInt(interval))
                 {
                     var lonOffsetMin = -1;
 

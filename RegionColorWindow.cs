@@ -171,30 +171,27 @@ namespace Bulldozer
             {
                 _overlapCheckDirty = false;
                 lastOverLapCheckFailed = false;
-                for (int i = -90; i < 90; i++)
+
+                var regions = _regionalColors.GetRegions();
+                for (int i = 0; i < regions.Count - 1; i++)
                 {
-                    for (int j = -180; j < 180; j++)
+                    var aRects = regions[i].GetRects();
+                    for (int j = i + 1; j < regions.Count; j++)
                     {
-                        int matchCount = 0;
-                        List<int> regionMatchingIndex = new List<int>();
+                        var bRects = regions[j].GetRects();
+                        foreach(var a in aRects)
+						{
+                            foreach(var b in bRects)
+							{
+                                if(a.Overlaps(b))
+								{
+                                    lastOverLapCheckFailed = true;
+                                    _lastOverlapCheck = DateTime.Now;
+                                    return;
+								}
+							}
+						}
 
-                        var regions = _regionalColors.GetRegions();
-                        for (int ndx = 0; ndx < regions.Count; ndx++)
-                        {
-                            var region = regions[ndx];
-                            if (region.ContainsPosition(i, j))
-                            {
-                                matchCount++;
-                                regionMatchingIndex.Add(ndx);
-                            }
-                        }
-
-                        if (matchCount > 1)
-                        {
-                            lastOverLapCheckFailed = true;
-                            // var matchingIndexes = string.Join(",", regionMatchingIndex);
-                            // Log.Debug($"overlap on points {i}, {j}, {matchingIndexes}");
-                        }
                     }
                 }
 
@@ -229,7 +226,7 @@ namespace Bulldozer
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
-            DrawSetting("Max Longitude", -180, 180, ref regionalColor.maxLongitude, regionalColor.minLongitude);
+            DrawSetting("Max Longitude", -180, 180, ref regionalColor.maxLongitude);
             GUILayout.EndHorizontal();
 
             GUILayout.BeginHorizontal();
@@ -324,25 +321,21 @@ namespace Bulldozer
             }
         }
 
-        private static void DrawSetting(string title, int minVal, int maxVal, ref int current, int actualMin = -1)
+        private static void DrawSetting(string title, float minVal, float maxVal, ref float current, float actualMin = -1)
         {
             GUILayout.Label(title);
 
-            var converted = (float)Convert.ToDouble(current, CultureInfo.InvariantCulture);
-            var leftValue = (float)Convert.ToDouble(minVal, CultureInfo.InvariantCulture);
-            var rightValue = (float)Convert.ToDouble(maxVal, CultureInfo.InvariantCulture);
-
-            var result = GUILayout.HorizontalSlider(converted, leftValue, rightValue, GUILayout.MinWidth(200));
-            int newVal = current;
-            if (Math.Abs(result - converted) > Mathf.Abs(rightValue - leftValue) / 1000)
+            var result = GUILayout.HorizontalSlider(current, minVal, maxVal, GUILayout.MinWidth(200));
+            float newVal = current;
+            if (Math.Abs(result - current) > Mathf.Abs(maxVal - minVal) / 1000)
             {
-                newVal = (int)result;
+                newVal = Mathf.Round(result / 0.36f) * 0.36f;
             }
 
-            var strResult = GUILayout.TextField(newVal.ToString(CultureInfo.CurrentCulture), GUILayout.Width(50));
+            var strResult = GUILayout.TextField(newVal.ToString("F2", CultureInfo.CurrentCulture), GUILayout.Width(50));
             try
             {
-                var updatedFromTextBox = int.Parse(strResult, NumberStyles.Any);
+                var updatedFromTextBox = float.Parse(strResult, NumberStyles.Any, CultureInfo.CurrentCulture);
                 if (updatedFromTextBox >= minVal && updatedFromTextBox <= maxVal)
                 {
                     newVal = updatedFromTextBox;

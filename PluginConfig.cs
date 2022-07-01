@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Collections;
 using System.ComponentModel;
 using BepInEx.Configuration;
@@ -52,8 +53,8 @@ namespace Bulldozer
         public static ConfigEntry<int> factoryTeardownRunTimePerFrame;
         public static ConfigEntry<OperationMode> soilPileConsumption;
         public static ConfigEntry<OperationMode> foundationConsumption;
-        public static ConfigEntry<int> maxLatitude;
-        public static ConfigEntry<int> minLatitude;
+        public static ConfigEntry<float> maxLatitude;
+        public static ConfigEntry<float> minLatitude;
 
         // used to make UI checkbox values persistent
         public static ConfigEntry<bool> addGuideLines;
@@ -64,7 +65,7 @@ namespace Bulldozer
         public static ConfigEntry<bool> addGuideLinesMeridian;
         public static ConfigEntry<bool> addGuideLinesTropic;
         public static ConfigEntry<bool> addGuideLinesPoles;
-        public static ConfigEntry<int> minorMeridianInterval;
+        public static ConfigEntry<float> minorMeridianInterval;
 
         public static ConfigEntry<int> guideLinesEquatorColor;
         public static ConfigEntry<int> guideLinesTropicColor;
@@ -94,13 +95,13 @@ namespace Bulldozer
         {
             PluginConfigFile = configFile;
 
-            minLatitude = configFile.Bind("Control", "Min Latitude", -90,
+            minLatitude = configFile.Bind("Control", "Min Latitude", -90f,
                 new ConfigDescription("Minimum latitude to work on. Set equal to Max Latitude to apply to entire planet",
-                    new AcceptableValueRange<int>(-90, 90)));
+                    new AcceptableValueRange<float>(-90f, 90f)));
 
-            maxLatitude = configFile.Bind("Control", "Max Latitude", 90,
+            maxLatitude = configFile.Bind("Control", "Max Latitude", 90f,
                 new ConfigDescription("Max latitude to work on, set min and max to the same value to apply to entire planet",
-                    new AcceptableValueRange<int>(-90, 90)));
+                    new AcceptableValueRange<float>(-90f, 90f)));
             minLatitude.SettingChanged += OnMinLatitudeChange;
             maxLatitude.SettingChanged += OnMaxLatitudeChange;
 
@@ -141,10 +142,10 @@ namespace Bulldozer
                 "Enable/disable of the tropic guidelines individually. No effect if AddGuideLines is disabled");
             addGuideLinesPoles = configFile.Bind("Decoration", "AddGuideLinesPoles", false,
                 "Enable/disable painting polar areas. No effect if AddGuideLines is disabled. Poles are considered first 2 tropics");
-            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0,
+            minorMeridianInterval = configFile.Bind("Decoration", "MinorMeridianInterval", 0f,
                 new ConfigDescription(
                     "Paint meridians starting at 0 and incrementing by this value. E.g., a value of 10 would add a meridian line every 10 degrees 18, 36 total. 0 to disable",
-                    new AcceptableValueRange<int>(0, 89), "meridians"));
+                    new AcceptableValueRange<float>(0f, 120f), "meridians"));
 
             guideLinesEquatorColor = configFile.Bind("CustomColors", "Equator Color", 7,
                 new ConfigDescription("Index of color in palette to paint equator. Default is green", new AcceptableValueRange<int>(0, 31), "color"));
@@ -196,7 +197,7 @@ namespace Bulldozer
 
         private static void OnMaxLatitudeChange(object sender, EventArgs e)
         {
-            if (sender is ConfigEntry<int> entry && minLatitude.Value > entry.Value)
+            if (sender is ConfigEntry<float> entry && minLatitude.Value > entry.Value)
             {
                 minLatitude.Value = maxLatitude.Value;
             }
@@ -204,9 +205,9 @@ namespace Bulldozer
 
         private static void OnMinLatitudeChange(object sender, EventArgs e)
         {
-            if (sender is ConfigEntry<int> entry && maxLatitude.Value < entry.Value)
+            if (sender is ConfigEntry<float> entry && maxLatitude.Value < entry.Value)
             {
-                maxLatitude.Value = entry.Value;
+                maxLatitude.Value = minLatitude.Value;
             }
         }
 
@@ -300,7 +301,7 @@ namespace Bulldozer
                 maxLatDir = "° ";
             }
 
-            return $"{minlat}{latDir} - {maxlat}{maxLatDir}";
+            return $"{minlat.ToString("F2", CultureInfo.CurrentCulture)}{latDir} - {maxlat.ToString("F2", CultureInfo.CurrentCulture)}{maxLatDir}";
         }
     }
 }
