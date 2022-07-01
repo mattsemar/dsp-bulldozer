@@ -226,6 +226,11 @@ namespace Bulldozer
                 descriptionAdded = DrawRangeField(configEntry);
             }
 
+            if (!descriptionAdded && configEntry.SettingType == typeof(float))
+            {
+                descriptionAdded = DrawFloatRangeField(configEntry);
+            }
+
             if (!descriptionAdded)
             {
                 //something went wrong, default to text field
@@ -273,6 +278,47 @@ namespace Bulldozer
                     var resultVal = (float)Convert.ToDouble(strResult, CultureInfo.InvariantCulture);
                     var clampedResultVal = Mathf.Clamp(resultVal, leftValue, rightValue);
                     configEntry.BoxedValue = (int)clampedResultVal;
+                }
+                catch (FormatException)
+                {
+                    // Ignore user typing in bad data
+                }
+            }
+
+            return true;
+        }
+
+        private static bool DrawFloatRangeField(ConfigEntryBase configEntry)
+        {
+            if (configEntry.Description.AcceptableValues is not AcceptableValueRange<float> acceptableValueRange)
+            {
+                return false;
+            }
+
+            GUILayout.BeginHorizontal();
+            AcceptableValueRange<float> acceptableValues = acceptableValueRange;
+            var converted = (float)configEntry.BoxedValue;
+            var leftValue = acceptableValues.MinValue;
+            var rightValue = acceptableValues.MaxValue;
+
+            var result = GUILayout.HorizontalSlider(converted, leftValue, rightValue, GUILayout.MinWidth(200));
+            if (Math.Abs(result - converted) > Mathf.Abs(rightValue - leftValue) / 1000)
+            {
+                var newValue = Convert.ChangeType(Mathf.Round(result / 0.36f) * 0.36f, configEntry.SettingType, CultureInfo.InvariantCulture);
+                configEntry.BoxedValue = newValue;
+            }
+
+            var strVal = ((float)configEntry.BoxedValue).ToString("F2", CultureInfo.CurrentCulture);
+            var strResult = GUILayout.TextField(strVal, GUILayout.Width(50));
+
+            GUILayout.EndHorizontal();
+            if (strResult != strVal)
+            {
+                try
+                {
+                    var resultVal = float.Parse(strResult, NumberStyles.Any, CultureInfo.CurrentCulture);
+                    var clampedResultVal = Mathf.Clamp(resultVal, leftValue, rightValue);
+                    configEntry.BoxedValue = clampedResultVal;
                 }
                 catch (FormatException)
                 {

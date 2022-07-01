@@ -335,7 +335,7 @@ namespace Bulldozer
             var strResult = GUILayout.TextField(newVal.ToString("F2", CultureInfo.CurrentCulture), GUILayout.Width(50));
             try
             {
-                var updatedFromTextBox = float.Parse(strResult, NumberStyles.Any);
+                var updatedFromTextBox = float.Parse(strResult, NumberStyles.Any, CultureInfo.CurrentCulture);
                 if (updatedFromTextBox >= minVal && updatedFromTextBox <= maxVal)
                 {
                     newVal = updatedFromTextBox;

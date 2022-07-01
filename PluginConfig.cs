@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Collections;
 using System.ComponentModel;
 using BepInEx.Configuration;
@@ -52,8 +53,8 @@ namespace Bulldozer
         public static ConfigEntry<int> factoryTeardownRunTimePerFrame;
         public static ConfigEntry<OperationMode> soilPileConsumption;
         public static ConfigEntry<OperationMode> foundationConsumption;
-        public static ConfigEntry<int> maxLatitude;
-        public static ConfigEntry<int> minLatitude;
+        public static ConfigEntry<float> maxLatitude;
+        public static ConfigEntry<float> minLatitude;
 
         // used to make UI checkbox values persistent
         public static ConfigEntry<bool> addGuideLines;
@@ -94,13 +95,13 @@ namespace Bulldozer
         {
             PluginConfigFile = configFile;
 
-            minLatitude = configFile.Bind("Control", "Min Latitude", -90,
+            minLatitude = configFile.Bind("Control", "Min Latitude", -90f,
                 new ConfigDescription("Minimum latitude to work on. Set equal to Max Latitude to apply to entire planet",
-                    new AcceptableValueRange<int>(-90, 90)));
+                    new AcceptableValueRange<float>(-90f, 90f)));
 
-            maxLatitude = configFile.Bind("Control", "Max Latitude", 90,
+            maxLatitude = configFile.Bind("Control", "Max Latitude", 90f,
                 new ConfigDescription("Max latitude to work on, set min and max to the same value to apply to entire planet",
-                    new AcceptableValueRange<int>(-90, 90)));
+                    new AcceptableValueRange<float>(-90f, 90f)));
             minLatitude.SettingChanged += OnMinLatitudeChange;
             maxLatitude.SettingChanged += OnMaxLatitudeChange;
 
@@ -196,7 +197,7 @@ namespace Bulldozer
 
         private static void OnMaxLatitudeChange(object sender, EventArgs e)
         {
-            if (sender is ConfigEntry<int> entry && minLatitude.Value > entry.Value)
+            if (sender is ConfigEntry<float> entry && minLatitude.Value > entry.Value)
             {
                 minLatitude.Value = maxLatitude.Value;
             }
@@ -204,9 +205,9 @@ namespace Bulldozer
 
         private static void OnMinLatitudeChange(object sender, EventArgs e)
         {
-            if (sender is ConfigEntry<int> entry && maxLatitude.Value < entry.Value)
+            if (sender is ConfigEntry<float> entry && maxLatitude.Value < entry.Value)
             {
-                maxLatitude.Value = entry.Value;
+                maxLatitude.Value = minLatitude.Value;
             }
         }
 
@@ -300,7 +301,7 @@ namespace Bulldozer
                 maxLatDir = "° ";
             }
 
-            return $"{minlat}{latDir} - {maxlat}{maxLatDir}";
+            return $"{minlat.ToString("F2", CultureInfo.CurrentCulture)}{latDir} - {maxlat.ToString("F2", CultureInfo.CurrentCulture)}{maxLatDir}";
         }
     }
 }
